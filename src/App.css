@@ -1,0 +1,755 @@
+:root {
+  --accent: #396cd8;
+  --color-added: #2f9e44;
+  --color-modified: #d9820b;
+  --color-deleted: #c0392b;
+  --color-renamed: #3b82f6;
+  --color-untracked: #6b7280;
+  --color-conflict: #c0392b;
+
+  font-family: "Inter", -apple-system, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color: #171717;
+  background-color: #f6f6f6;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+button {
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid #cfcfcf;
+  padding: 0.5em 1em;
+  font-weight: 600;
+  color: #171717;
+  background-color: #ffffff;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+input,
+select,
+textarea {
+  border-radius: 8px;
+  border: 1px solid #cfcfcf;
+  padding: 0.5em 0.75em;
+  background-color: #ffffff;
+  color: #171717;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7em 1.2em;
+  background: #fafafa;
+  border-bottom: 1px solid #e2e2e2;
+}
+
+.app-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.guide-button {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  flex-wrap: wrap;
+  padding: 0.6em 1.2em;
+  border-bottom: 1px solid #e2e2e2;
+  background: #fdfdfd;
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  flex-wrap: wrap;
+}
+
+.repo-path {
+  color: #666;
+  font-size: 0.9rem;
+  max-width: 40vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-switcher {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.branch-create-form {
+  display: flex;
+  gap: 0.3em;
+}
+
+.branch-create-form input {
+  width: 10em;
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.7em 1.2em;
+  background: #fde2e1;
+  color: #7a1f1a;
+  border-bottom: 1px solid #f3b4b0;
+}
+
+.error-banner span {
+  overflow-wrap: anywhere;
+}
+
+.error-banner button {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: inherit;
+  padding: 0.1em 0.4em;
+  flex-shrink: 0;
+}
+
+.not-a-repo-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  flex-wrap: wrap;
+  padding: 0.7em 1.2em;
+  background: #e6edfb;
+  color: #1f3a7a;
+  border-bottom: 1px solid #b9cdf3;
+}
+
+.not-a-repo-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  flex-shrink: 0;
+}
+
+.not-a-repo-actions button:first-child {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.not-a-repo-actions button:last-child {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: inherit;
+  padding: 0.1em 0.4em;
+}
+
+.welcome {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2em;
+}
+
+.welcome-card {
+  max-width: 26em;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9em;
+}
+
+.welcome-card h1 {
+  font-size: 1.5rem;
+}
+
+.welcome-card p {
+  color: #555;
+}
+
+.welcome-open {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  font-size: 1.05rem;
+  padding: 0.6em 1.6em;
+}
+
+.welcome-guide {
+  background: transparent;
+  border-color: transparent;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.main-split {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.file-list {
+  width: 20em;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid #e2e2e2;
+  padding: 0.9em;
+}
+
+.file-list-hint {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0 0 1em;
+}
+
+.file-list h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #666;
+  margin: 0 0 0.5em;
+}
+
+.file-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.2em 0 0.2em 0.5em;
+  border-left: 3px solid transparent;
+}
+
+.status-added {
+  border-left-color: var(--color-added);
+}
+
+.status-modified {
+  border-left-color: var(--color-modified);
+}
+
+.status-deleted {
+  border-left-color: var(--color-deleted);
+}
+
+.status-renamed {
+  border-left-color: var(--color-renamed);
+}
+
+.status-untracked {
+  border-left-color: var(--color-untracked);
+}
+
+.status-conflict {
+  border-left-color: var(--color-conflict);
+}
+
+.file-row input[type="checkbox"] {
+  width: 1.1em;
+  height: 1.1em;
+  flex-shrink: 0;
+}
+
+.file-row.selected .file-row-label {
+  background: #dfe8fb;
+  border-radius: 6px;
+}
+
+.file-row-label {
+  flex: 1;
+  display: flex;
+  gap: 0.6em;
+  align-items: baseline;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font-weight: 400;
+  padding: 0.3em 0.5em;
+  text-align: left;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.file-row-label:hover {
+  background: #eee;
+  border-radius: 6px;
+}
+
+.file-status {
+  font-size: 0.75rem;
+  color: #666;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.file-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.diff-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.diff-panel-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2em;
+}
+
+.diff-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.7em 1em;
+  border-bottom: 1px solid #e2e2e2;
+  background: #fafafa;
+}
+
+.diff-panel-filename {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.diff-panel-badge {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #666;
+  background: #eee;
+  padding: 0.2em 0.6em;
+  border-radius: 999px;
+}
+
+.diff-body {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 0.9em 1em;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.diff-add {
+  background: #e3f5e6;
+  color: #1a6b28;
+}
+
+.diff-remove {
+  background: #fbe3e2;
+  color: #8a1f1a;
+}
+
+.diff-hunk {
+  color: #666;
+  background: #eef1f8;
+}
+
+.diff-error {
+  color: #8a1f1a;
+  padding: 1em;
+}
+
+.empty-state {
+  color: #777;
+  padding: 1em;
+}
+
+.commit-box {
+  display: flex;
+  gap: 0.8em;
+  align-items: flex-end;
+  padding: 0.9em 1.2em;
+  border-top: 1px solid #e2e2e2;
+  background: #fafafa;
+}
+
+.commit-box-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+
+.commit-box-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #444;
+}
+
+.commit-box textarea {
+  min-height: 3.2em;
+  max-height: 8em;
+  resize: vertical;
+  font-size: 1rem;
+}
+
+.commit-button {
+  background: var(--color-added);
+  color: #ffffff;
+  border-color: var(--color-added);
+  font-size: 1.05rem;
+  padding: 0.6em 1.4em;
+  flex-shrink: 0;
+}
+
+.commit-button:disabled {
+  background: #ffffff;
+  color: #171717;
+  border-color: #cfcfcf;
+}
+
+.command-log {
+  border-top: 1px solid #e2e2e2;
+  background: #fafafa;
+  max-height: 30vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.command-log-toggle {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+  padding: 0.5em 1.2em;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #555;
+}
+
+.command-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 1.2em 0.8em;
+  overflow-y: auto;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.8rem;
+}
+
+.command-log-list li {
+  padding: 0.25em 0;
+  border-bottom: 1px dashed #e0e0e0;
+  overflow-wrap: anywhere;
+}
+
+.command-log-error code {
+  color: #8a1f1a;
+}
+
+.command-log-error-text {
+  color: #8a1f1a;
+  font-family: inherit;
+  white-space: pre-wrap;
+}
+
+.guide-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5em;
+  z-index: 100;
+}
+
+.guide-card {
+  background: #ffffff;
+  color: #171717;
+  border-radius: 16px;
+  padding: 2em;
+  max-width: 34em;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.guide-card h2 {
+  font-size: 1.4rem;
+}
+
+.guide-intro {
+  color: #555;
+  margin: 0.4em 0 1.4em;
+}
+
+.guide-steps {
+  list-style: none;
+  margin: 0 0 1.6em;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.1em;
+}
+
+.guide-steps li {
+  display: flex;
+  gap: 0.9em;
+  align-items: flex-start;
+}
+
+.guide-step-number {
+  flex-shrink: 0;
+  width: 1.8em;
+  height: 1.8em;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.guide-step-text h3 {
+  font-size: 1rem;
+  margin-bottom: 0.2em;
+}
+
+.guide-step-text p {
+  margin: 0;
+  color: #444;
+}
+
+.guide-glossary {
+  border-top: 1px solid #e2e2e2;
+  padding-top: 1.2em;
+  margin-bottom: 1.4em;
+}
+
+.guide-glossary h3 {
+  font-size: 0.95rem;
+  margin-bottom: 0.7em;
+}
+
+.guide-glossary dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.guide-glossary-item {
+  display: flex;
+  gap: 0.6em;
+  align-items: baseline;
+}
+
+.guide-glossary-item dt {
+  font-weight: 700;
+  flex-shrink: 0;
+  width: 5em;
+}
+
+.guide-glossary-item dd {
+  margin: 0;
+  color: #444;
+}
+
+.guide-close {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  width: 100%;
+  font-size: 1.05rem;
+  padding: 0.6em;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-added: #4caf6d;
+    --color-modified: #e0a840;
+    --color-deleted: #e0796f;
+    --color-renamed: #6ea8fe;
+    --color-untracked: #9aa4b2;
+    --color-conflict: #e0796f;
+
+    color: #f0f0f0;
+    background-color: #1c1c1c;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    background-color: #2a2a2a;
+    color: #f0f0f0;
+    border-color: #444;
+  }
+
+  .header,
+  .toolbar,
+  .commit-box,
+  .command-log,
+  .diff-panel-header {
+    background: #232323;
+    border-color: #3a3a3a;
+  }
+
+  .file-list {
+    border-color: #3a3a3a;
+  }
+
+  .repo-path,
+  .file-status,
+  .command-log-toggle,
+  .file-list-hint,
+  .diff-panel-badge,
+  .welcome-card p,
+  .guide-intro,
+  .guide-step-text p,
+  .guide-glossary-item dd {
+    color: #b5b5b5;
+  }
+
+  .diff-panel-badge {
+    background: #333;
+  }
+
+  .file-row-label:hover {
+    background: #333;
+  }
+
+  .file-row.selected .file-row-label {
+    background: #2c3a5c;
+  }
+
+  .diff-hunk {
+    background: #2a2f3d;
+    color: #b5b5b5;
+  }
+
+  .diff-add {
+    background: #163420;
+    color: #7ee39a;
+  }
+
+  .diff-remove {
+    background: #3a1c1a;
+    color: #f19b96;
+  }
+
+  .error-banner {
+    background: #3a1c1a;
+    color: #f3b4b0;
+    border-color: #5a2c28;
+  }
+
+  .not-a-repo-banner {
+    background: #1c2a4a;
+    color: #c3d3f7;
+    border-color: #2e4270;
+  }
+
+  .command-log-list li {
+    border-color: #3a3a3a;
+  }
+
+  .commit-button:disabled {
+    background: #2a2a2a;
+    color: #f0f0f0;
+    border-color: #444;
+  }
+
+  .guide-card {
+    background: #232323;
+    color: #f0f0f0;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  }
+
+  .guide-glossary {
+    border-color: #3a3a3a;
+  }
+}
