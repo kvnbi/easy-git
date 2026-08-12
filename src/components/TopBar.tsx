@@ -1,20 +1,27 @@
 import { useRepo } from "../state/repo";
 import { BranchSwitcher } from "./BranchSwitcher";
+import { RemoteStatus } from "./RemoteStatus";
 
 interface TopBarProps {
   onOpenGuide: () => void;
+  onOpenSettings: () => void;
 }
 
-export function TopBar({ onOpenGuide }: TopBarProps) {
+export function TopBar({ onOpenGuide, onOpenSettings }: TopBarProps) {
   const { repoPath, status, pickAndOpenRepo, push, pull, busy } = useRepo();
 
   return (
     <>
       <header className="header">
         <span className="app-name">easy-git</span>
-        <button type="button" className="guide-button" onClick={onOpenGuide}>
-          Guide
-        </button>
+        <div className="header-actions">
+          <button type="button" className="header-button" onClick={onOpenGuide}>
+            Guide
+          </button>
+          <button type="button" className="header-button" onClick={onOpenSettings}>
+            Settings
+          </button>
+        </div>
       </header>
 
       <div className="toolbar">
@@ -27,6 +34,7 @@ export function TopBar({ onOpenGuide }: TopBarProps) {
               {repoPath}
             </span>
           )}
+          {repoPath && <RemoteStatus />}
         </div>
 
         {repoPath && (

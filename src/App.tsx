@@ -1,14 +1,20 @@
 import { useState } from "react";
 import { RepoProvider, useRepo } from "./state/repo";
+import { ThemeProvider } from "./state/theme";
 import { TopBar } from "./components/TopBar";
 import { FileList } from "./components/FileList";
 import { DiffView } from "./components/DiffView";
 import { CommitBox } from "./components/CommitBox";
 import { CommandLog } from "./components/CommandLog";
 import { Guide } from "./components/Guide";
+import { Settings } from "./components/Settings";
+import { History } from "./components/History";
+import { Stash } from "./components/Stash";
 import "./App.css";
 
 const GUIDE_SEEN_KEY = "easy-git-guide-seen";
+
+type View = "changes" | "history" | "stash";
 
 function ErrorBanner() {
   const { errorMessage, dismissError } = useRepo();
@@ -59,8 +65,39 @@ function Welcome({ onOpenGuide }: { onOpenGuide: () => void }) {
   );
 }
 
+function ViewTabs({ view, onChange }: { view: View; onChange: (view: View) => void }) {
+  const { changedFiles } = useRepo();
+  return (
+    <div className="view-tabs">
+      <button
+        type="button"
+        className={view === "changes" ? "active" : ""}
+        onClick={() => onChange("changes")}
+      >
+        Changes{changedFiles.length > 0 ? ` (${changedFiles.length})` : ""}
+      </button>
+      <button
+        type="button"
+        className={view === "history" ? "active" : ""}
+        onClick={() => onChange("history")}
+      >
+        History
+      </button>
+      <button
+        type="button"
+        className={view === "stash" ? "active" : ""}
+        onClick={() => onChange("stash")}
+      >
+        Stash
+      </button>
+    </div>
+  );
+}
+
 function AppShell() {
   const { repoPath } = useRepo();
+  const [view, setView] = useState<View>("changes");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(() => {
     return localStorage.getItem(GUIDE_SEEN_KEY) !== "true";
   });
@@ -72,31 +109,41 @@ function AppShell() {
 
   return (
     <div className="app">
-      <TopBar onOpenGuide={() => setGuideOpen(true)} />
+      <TopBar onOpenGuide={() => setGuideOpen(true)} onOpenSettings={() => setSettingsOpen(true)} />
       <ErrorBanner />
       <NotARepoBanner />
       {repoPath ? (
         <>
-          <div className="main-split">
-            <FileList />
-            <DiffView />
-          </div>
-          <CommitBox />
+          <ViewTabs view={view} onChange={setView} />
+          {view === "changes" && (
+            <>
+              <div className="main-split">
+                <FileList />
+                <DiffView />
+              </div>
+              <CommitBox />
+            </>
+          )}
+          {view === "history" && <History />}
+          {view === "stash" && <Stash />}
           <CommandLog />
         </>
       ) : (
         <Welcome onOpenGuide={() => setGuideOpen(true)} />
       )}
       <Guide open={guideOpen} onClose={closeGuide} />
+      <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
 
 function App() {
   return (
-    <RepoProvider>
-      <AppShell />
-    </RepoProvider>
+    <ThemeProvider>
+      <RepoProvider>
+        <AppShell />
+      </RepoProvider>
+    </ThemeProvider>
   );
 }
 

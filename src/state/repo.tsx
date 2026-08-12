@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import * as git from "../api/git";
-import type { BranchInfo, OpenRepoResult, StatusResult } from "../api/git";
+import type { BranchInfo, OpenRepoResult, RemoteInfo, StatusResult } from "../api/git";
 
 export interface SelectedFile {
   path: string;
@@ -29,6 +29,7 @@ interface RepoContextValue {
   repoPath: string | null;
   status: StatusResult | null;
   branches: BranchInfo[];
+  remotes: RemoteInfo[];
   changedFiles: ChangedFile[];
   uncheckedPaths: Set<string>;
   selectedFile: SelectedFile | null;
@@ -44,6 +45,11 @@ interface RepoContextValue {
   pull: () => Promise<void>;
   checkoutBranch: (name: string) => Promise<void>;
   createBranch: (name: string) => Promise<void>;
+  addRemoteAndPush: (url: string) => Promise<void>;
+  setUpstream: (remote: string) => Promise<void>;
+  stashSave: (message: string) => Promise<void>;
+  stashApply: (index: number) => Promise<void>;
+  stashDrop: (index: number) => Promise<void>;
   selectFile: (path: string, staged: boolean) => void;
   dismissError: () => void;
   dismissNotARepo: () => void;
@@ -66,6 +72,7 @@ export function RepoProvider({ children }: { children: ReactNode }) {
   const [repoPath, setRepoPath] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusResult | null>(null);
   const [branches, setBranches] = useState<BranchInfo[]>([]);
+  const [remotes, setRemotes] = useState<RemoteInfo[]>([]);
   const [uncheckedPaths, setUncheckedPaths] = useState<Set<string>>(new Set());
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [commandLog, setCommandLog] = useState<LogEntry[]>([]);
@@ -106,6 +113,17 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     [handleError],
   );
 
+  const loadRemotes = useCallback(
+    async (path: string) => {
+      try {
+        setRemotes(await git.gitRemotes(path));
+      } catch (err) {
+        handleError(err);
+      }
+    },
+    [handleError],
+  );
+
   const refreshStatus = useCallback(async () => {
     if (!repoPath) return;
     try {
@@ -113,10 +131,11 @@ export function RepoProvider({ children }: { children: ReactNode }) {
       setStatus(result.status);
       logCommand(result.command_run);
       await loadBranches(repoPath);
+      await loadRemotes(repoPath);
     } catch (err) {
       handleError(err);
     }
-  }, [repoPath, logCommand, handleError, loadBranches]);
+  }, [repoPath, logCommand, handleError, loadBranches, loadRemotes]);
 
   const applyOpenedRepo = useCallback(
     async (result: OpenRepoResult) => {
@@ -126,8 +145,9 @@ export function RepoProvider({ children }: { children: ReactNode }) {
       setNotARepoPath(null);
       logCommand(result.command_run);
       await loadBranches(result.path);
+      await loadRemotes(result.path);
     },
-    [logCommand, loadBranches],
+    [logCommand, loadBranches, loadRemotes],
   );
 
   const pickAndOpenRepo = useCallback(async () => {
@@ -208,6 +228,49 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     [runMutation],
   );
 
+  const addRemoteAndPush = useCallback(
+    async (url: string) => {
+      if (!repoPath || !status?.branch) return;
+      const branch = status.branch;
+      setBusy(true);
+      try {
+        const addResult = await git.gitAddRemote(repoPath, "origin", url);
+        logCommand(addResult.command_run, addResult.stderr ?? undefined);
+        const pushResult = await git.gitPushUpstream(repoPath, "origin", branch);
+        logCommand(pushResult.command_run, pushResult.stderr ?? undefined);
+        await refreshStatus();
+      } catch (err) {
+        handleError(err);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [repoPath, status, logCommand, handleError, refreshStatus],
+  );
+
+  const setUpstream = useCallback(
+    (remote: string) => {
+      const branch = status?.branch ?? "";
+      return runMutation((path) => git.gitPushUpstream(path, remote, branch));
+    },
+    [status, runMutation],
+  );
+
+  const stashSave = useCallback(
+    (message: string) => runMutation((path) => git.gitStashSave(path, message)),
+    [runMutation],
+  );
+
+  const stashApply = useCallback(
+    (index: number) => runMutation((path) => git.gitStashApply(path, index)),
+    [runMutation],
+  );
+
+  const stashDrop = useCallback(
+    (index: number) => runMutation((path) => git.gitStashDrop(path, index)),
+    [runMutation],
+  );
+
   const save = useCallback(
     async (message: string) => {
       if (!repoPath || !status) return;
@@ -252,6 +315,7 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     repoPath,
     status,
     branches,
+    remotes,
     changedFiles,
     uncheckedPaths,
     selectedFile,
@@ -267,6 +331,11 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     pull,
     checkoutBranch,
     createBranch,
+    addRemoteAndPush,
+    setUpstream,
+    stashSave,
+    stashApply,
+    stashDrop,
     selectFile,
     dismissError,
     dismissNotARepo,

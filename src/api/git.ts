@@ -43,6 +43,40 @@ export interface DiffResult {
   command_run: string;
 }
 
+export interface CommitEntry {
+  hash: string;
+  short_hash: string;
+  author: string;
+  date: string;
+  message: string;
+}
+
+export interface LogResult {
+  commits: CommitEntry[];
+  command_run: string;
+}
+
+export interface RemoteInfo {
+  name: string;
+  url: string;
+}
+
+export interface StashEntry {
+  index: number;
+  message: string;
+}
+
+export interface StashListResult {
+  stashes: StashEntry[];
+  command_run: string;
+}
+
+export interface GitConfigInfo {
+  user_name: string | null;
+  user_email: string | null;
+  credential_helper: string | null;
+}
+
 export interface GitError {
   command_run: string;
   message: string;
@@ -111,4 +145,48 @@ export function gitCreateBranch(repo: string, name: string): Promise<GitActionRe
 
 export function gitDiff(repo: string, path: string, staged: boolean): Promise<DiffResult> {
   return invoke("git_diff", { repo, path, staged });
+}
+
+export function gitLog(repo: string): Promise<LogResult> {
+  return invoke("git_log", { repo });
+}
+
+export function gitShowCommit(repo: string, hash: string): Promise<DiffResult> {
+  return invoke("git_show_commit", { repo, hash });
+}
+
+export function gitRemotes(repo: string): Promise<RemoteInfo[]> {
+  return invoke("git_remotes", { repo });
+}
+
+export function gitAddRemote(repo: string, name: string, url: string): Promise<GitActionResult> {
+  return invoke("git_add_remote", { repo, name, url });
+}
+
+export function gitPushUpstream(
+  repo: string,
+  remote: string,
+  branch: string,
+): Promise<GitActionResult> {
+  return invoke("git_push_upstream", { repo, remote, branch });
+}
+
+export function gitStashSave(repo: string, message: string): Promise<GitActionResult> {
+  return invoke("git_stash_save", { repo, message });
+}
+
+export function gitStashList(repo: string): Promise<StashListResult> {
+  return invoke("git_stash_list", { repo });
+}
+
+export function gitStashApply(repo: string, index: number): Promise<GitActionResult> {
+  return invoke("git_stash_apply", { repo, index });
+}
+
+export function gitStashDrop(repo: string, index: number): Promise<GitActionResult> {
+  return invoke("git_stash_drop", { repo, index });
+}
+
+export function gitConfigInfo(repo: string): Promise<GitConfigInfo> {
+  return invoke("git_config_info", { repo });
 }
