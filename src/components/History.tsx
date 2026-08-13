@@ -42,8 +42,9 @@ function CommitDiff({ hash }: { hash: string | null }) {
 
   if (!hash) {
     return (
-      <div className="diff-panel-empty empty-state">
-        Click a commit on the left to see what changed in it.
+      <div className="empty-block">
+        <h2>Select a Commit</h2>
+        <p>Choose a commit to see what changed.</p>
       </div>
     );
   }
@@ -89,8 +90,12 @@ export function History() {
     <div className="main-split">
       <div className="file-list">
         {error && <p className="diff-error">{error}</p>}
-        {!error && commits === null && <p className="empty-state">Loading commits...</p>}
-        {!error && commits?.length === 0 && <p className="empty-state">No commits yet.</p>}
+        {!error && commits === null && <p className="empty-state">Loading...</p>}
+        {!error && commits?.length === 0 && (
+          <div className="empty-block">
+            <h2>No Commits</h2>
+          </div>
+        )}
         {commits && commits.length > 0 && (
           <ul className="history-list">
             {commits.map((c) => (

@@ -72,8 +72,9 @@ export function DiffView() {
   if (!selectedFile) {
     return (
       <div className="diff-panel">
-        <div className="diff-panel-empty empty-state">
-          Click a file on the left to see what changed in it.
+        <div className="empty-block">
+          <h2>Select a File</h2>
+          <p>Choose a file to see what changed.</p>
         </div>
       </div>
     );

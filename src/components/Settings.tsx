@@ -41,9 +41,9 @@ export function Settings({ open, onClose }: SettingsProps) {
   if (!open) return null;
 
   return (
-    <div className="guide-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="guide-card"
+        className="modal-card"
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
@@ -51,7 +51,7 @@ export function Settings({ open, onClose }: SettingsProps) {
       >
         <h2>Settings</h2>
 
-        <div className="guide-glossary">
+        <div className="modal-section">
           <h3>Appearance</h3>
           <div className="settings-theme-options">
             {themeOptions.map((option) => (
@@ -67,7 +67,7 @@ export function Settings({ open, onClose }: SettingsProps) {
           </div>
         </div>
 
-        <div className="guide-glossary">
+        <div className="modal-section">
           <h3>Git identity</h3>
           {!repoPath && (
             <p className="empty-state">Open a project to see its Git identity.</p>
@@ -75,15 +75,15 @@ export function Settings({ open, onClose }: SettingsProps) {
           {repoPath && !config && <p className="empty-state">Loading...</p>}
           {repoPath && config && (
             <dl>
-              <div className="guide-glossary-item">
+              <div className="modal-list-item">
                 <dt>Name</dt>
                 <dd>{config.user_name ?? "Not set"}</dd>
               </div>
-              <div className="guide-glossary-item">
+              <div className="modal-list-item">
                 <dt>Email</dt>
                 <dd>{config.user_email ?? "Not set"}</dd>
               </div>
-              <div className="guide-glossary-item">
+              <div className="modal-list-item">
                 <dt>Credentials</dt>
                 <dd>{config.credential_helper ?? "No credential helper configured"}</dd>
               </div>
@@ -91,7 +91,7 @@ export function Settings({ open, onClose }: SettingsProps) {
           )}
         </div>
 
-        <button type="button" className="guide-close" onClick={onClose}>
+        <button type="button" className="modal-close" onClick={onClose}>
           Close
         </button>
       </div>

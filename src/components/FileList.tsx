@@ -56,10 +56,8 @@ export function FileList() {
     <div className="file-list">
       {changedFiles.length > 0 ? (
         <>
-          <p className="file-list-hint">
-            Every box is checked by default. Uncheck a file to leave it out.
-          </p>
-          <h3>Changed files ({changedFiles.length})</h3>
+          <p className="file-list-hint">Uncheck a file to leave it out.</p>
+          <h3>Changed ({changedFiles.length})</h3>
           <ul>
             {changedFiles.map((f) => (
               <FileRow key={f.path} file={f} isStaged={stagedPaths.has(f.path)} />
@@ -67,7 +65,10 @@ export function FileList() {
           </ul>
         </>
       ) : (
-        <p className="empty-state">Nothing changed. Your project is all saved.</p>
+        <div className="empty-block">
+          <h2>No Changes</h2>
+          <p>Your project is up to date.</p>
+        </div>
       )}
     </div>
   );

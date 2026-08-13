@@ -13,23 +13,23 @@ interface GuideStep {
 const steps: GuideStep[] = [
   {
     title: "Open a project",
-    text: "Click Open Folder and choose a project folder on your computer. If it is not a Git project yet, a button will offer to start one for you.",
+    text: "Choose a folder on your computer. If it is not a Git project yet, easy-git offers to start one for you.",
   },
   {
     title: "Check what to save",
-    text: "Every changed file shows up in one list, already checked. Uncheck any file you want to leave out.",
+    text: "Every changed file appears in one list, already checked. Uncheck anything you want to leave out.",
   },
   {
     title: "Write a short note",
-    text: "Type a few words about what you changed, in the box at the bottom.",
+    text: "A few words about what changed, in the box at the bottom.",
   },
   {
     title: "Save your work",
-    text: "Click Save. This is called a commit in Git.",
+    text: "Click Save. Git calls this a commit.",
   },
   {
     title: "Share your work",
-    text: "Click Push to send your saved changes to the shared copy online.",
+    text: "Click Push to send your saved changes online.",
   },
 ];
 
@@ -53,16 +53,16 @@ export function Guide({ open, onClose }: GuideProps) {
   if (!open) return null;
 
   return (
-    <div className="guide-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="guide-card"
+        className="modal-card"
         role="dialog"
         aria-modal="true"
         aria-label="How to use easy-git"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2>How to use easy-git</h2>
-        <p className="guide-intro">Five simple steps. No commands to remember.</p>
+        <h2>How easy-git works</h2>
+        <p className="modal-intro">Five steps. No commands to remember.</p>
 
         <ol className="guide-steps">
           {steps.map((step, i) => (
@@ -76,11 +76,11 @@ export function Guide({ open, onClose }: GuideProps) {
           ))}
         </ol>
 
-        <div className="guide-glossary">
+        <div className="modal-section">
           <h3>Quick words</h3>
           <dl>
             {glossary.map((item) => (
-              <div className="guide-glossary-item" key={item.term}>
+              <div className="modal-list-item" key={item.term}>
                 <dt>{item.term}</dt>
                 <dd>{item.meaning}</dd>
               </div>
@@ -88,8 +88,8 @@ export function Guide({ open, onClose }: GuideProps) {
           </dl>
         </div>
 
-        <button type="button" className="guide-close" onClick={onClose}>
-          Got it
+        <button type="button" className="modal-close" onClick={onClose}>
+          Got It
         </button>
       </div>
     </div>

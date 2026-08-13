@@ -48,7 +48,7 @@ export function BranchSwitcher() {
         </form>
       ) : (
         <button type="button" onClick={() => setCreating(true)} disabled={busy}>
-          + New branch
+          New Branch
         </button>
       )}
     </div>

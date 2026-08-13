@@ -2,6 +2,7 @@ import { useState } from "react";
 import { RepoProvider, useRepo } from "./state/repo";
 import { ThemeProvider } from "./state/theme";
 import { TopBar } from "./components/TopBar";
+import { Sidebar, type View } from "./components/Sidebar";
 import { FileList } from "./components/FileList";
 import { DiffView } from "./components/DiffView";
 import { CommitBox } from "./components/CommitBox";
@@ -13,8 +14,6 @@ import { Stash } from "./components/Stash";
 import "./App.css";
 
 const GUIDE_SEEN_KEY = "easy-git-guide-seen";
-
-type View = "changes" | "history" | "stash";
 
 function ErrorBanner() {
   const { errorMessage, dismissError } = useRepo();
@@ -34,10 +33,10 @@ function NotARepoBanner() {
   if (!notARepoPath) return null;
   return (
     <div className="not-a-repo-banner">
-      <span>This folder is not a Git project yet.</span>
+      <span>This isn't a Git project yet.</span>
       <div className="not-a-repo-actions">
-        <button type="button" onClick={initRepo} disabled={busy}>
-          Start a Git project here
+        <button type="button" className="primary" onClick={initRepo} disabled={busy}>
+          Start a Git Project
         </button>
         <button type="button" onClick={dismissNotARepo} aria-label="Dismiss">
           x
@@ -52,44 +51,15 @@ function Welcome({ onOpenGuide }: { onOpenGuide: () => void }) {
   return (
     <div className="welcome">
       <div className="welcome-card">
-        <h1>Welcome to easy-git</h1>
-        <p>Open a project folder to see what changed and save your work with buttons.</p>
-        <button type="button" className="welcome-open" onClick={pickAndOpenRepo} disabled={busy}>
+        <h1>Open a Project</h1>
+        <p>Choose a folder that uses Git to get started.</p>
+        <button type="button" className="primary" onClick={pickAndOpenRepo} disabled={busy}>
           Open Folder
         </button>
         <button type="button" className="welcome-guide" onClick={onOpenGuide}>
           Show me how it works
         </button>
       </div>
-    </div>
-  );
-}
-
-function ViewTabs({ view, onChange }: { view: View; onChange: (view: View) => void }) {
-  const { changedFiles } = useRepo();
-  return (
-    <div className="view-tabs">
-      <button
-        type="button"
-        className={view === "changes" ? "active" : ""}
-        onClick={() => onChange("changes")}
-      >
-        Changes{changedFiles.length > 0 ? ` (${changedFiles.length})` : ""}
-      </button>
-      <button
-        type="button"
-        className={view === "history" ? "active" : ""}
-        onClick={() => onChange("history")}
-      >
-        History
-      </button>
-      <button
-        type="button"
-        className={view === "stash" ? "active" : ""}
-        onClick={() => onChange("stash")}
-      >
-        Stash
-      </button>
     </div>
   );
 }
@@ -109,28 +79,35 @@ function AppShell() {
 
   return (
     <div className="app">
-      <TopBar onOpenGuide={() => setGuideOpen(true)} onOpenSettings={() => setSettingsOpen(true)} />
+      <TopBar />
       <ErrorBanner />
       <NotARepoBanner />
       {repoPath ? (
-        <>
-          <ViewTabs view={view} onChange={setView} />
-          {view === "changes" && (
-            <>
-              <div className="main-split">
-                <FileList />
-                <DiffView />
-              </div>
-              <CommitBox />
-            </>
-          )}
-          {view === "history" && <History />}
-          {view === "stash" && <Stash />}
-          <CommandLog />
-        </>
+        <div className="body">
+          <Sidebar
+            view={view}
+            onChangeView={setView}
+            onOpenGuide={() => setGuideOpen(true)}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+          <div className="content">
+            {view === "changes" && (
+              <>
+                <div className="main-split">
+                  <FileList />
+                  <DiffView />
+                </div>
+                <CommitBox />
+              </>
+            )}
+            {view === "history" && <History />}
+            {view === "stash" && <Stash />}
+          </div>
+        </div>
       ) : (
         <Welcome onOpenGuide={() => setGuideOpen(true)} />
       )}
+      {repoPath && <CommandLog />}
       <Guide open={guideOpen} onClose={closeGuide} />
       <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>

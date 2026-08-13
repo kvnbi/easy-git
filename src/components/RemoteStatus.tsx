@@ -19,7 +19,7 @@ export function RemoteStatus() {
   if (remotes.length > 0) {
     return (
       <button type="button" onClick={() => setUpstream(remotes[0].name)} disabled={busy}>
-        Set upstream
+        Set Upstream
       </button>
     );
   }
@@ -53,7 +53,7 @@ export function RemoteStatus() {
 
   return (
     <button type="button" onClick={() => setAdding(true)} disabled={busy}>
-      Add remote
+      Add Remote
     </button>
   );
 }

@@ -48,13 +48,17 @@ export function Stash() {
           disabled={!hasChanges}
         />
         <button type="button" onClick={handleSave} disabled={!hasChanges || busy}>
-          Stash changes
+          Stash Changes
         </button>
       </div>
 
       {error && <p className="diff-error">{error}</p>}
-      {!error && stashes === null && <p className="empty-state">Loading stashes...</p>}
-      {!error && stashes?.length === 0 && <p className="empty-state">Nothing stashed.</p>}
+      {!error && stashes === null && <p className="empty-state">Loading...</p>}
+      {!error && stashes?.length === 0 && (
+        <div className="empty-block">
+          <h2>No Stashes</h2>
+        </div>
+      )}
 
       {stashes && stashes.length > 0 && (
         <ul className="stash-list">

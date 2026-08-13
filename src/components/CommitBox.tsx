@@ -28,7 +28,7 @@ export function CommitBox() {
           disabled={!hasChecked}
         />
       </div>
-      <button type="button" className="commit-button" onClick={handleSave} disabled={!canSave}>
+      <button type="button" className="primary" onClick={handleSave} disabled={!canSave}>
         Save {checkedCount > 0 ? `(${checkedCount})` : ""}
       </button>
     </div>
