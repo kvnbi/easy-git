@@ -2,14 +2,14 @@ use serde::Serialize;
 
 use crate::exec::{run_git, GitError};
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct FileEntry {
     pub path: String,
     pub status: String,
     pub orig_path: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct StatusResult {
     pub branch: Option<String>,
     pub upstream: Option<String>,
@@ -152,4 +152,92 @@ pub fn git_status(repo: String) -> Result<StatusCommandResult, GitError> {
         status: parse_status(&output.stdout),
         command_run: output.command_run,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_branch_and_ahead_behind() {
+        let raw = "# branch.oid abc123\n# branch.head main\n# branch.upstream origin/main\n# branch.ab +2 -3\n";
+        let status = parse_status(raw);
+        assert_eq!(status.branch, Some("main".to_string()));
+        assert_eq!(status.upstream, Some("origin/main".to_string()));
+        assert_eq!(status.ahead, 2);
+        assert_eq!(status.behind, 3);
+    }
+
+    #[test]
+    fn detached_head_leaves_branch_none() {
+        let raw = "# branch.oid abc123\n# branch.head (detached)\n";
+        let status = parse_status(raw);
+        assert_eq!(status.branch, None);
+    }
+
+    #[test]
+    fn parses_partially_staged_modified_file() {
+        let raw = "1 MM N... 100644 100644 100644 aaa bbb file.txt\n";
+        let status = parse_status(raw);
+        assert_eq!(
+            status.staged,
+            vec![FileEntry {
+                path: "file.txt".to_string(),
+                status: "modified".to_string(),
+                orig_path: None,
+            }]
+        );
+        assert_eq!(
+            status.unstaged,
+            vec![FileEntry {
+                path: "file.txt".to_string(),
+                status: "modified".to_string(),
+                orig_path: None,
+            }]
+        );
+    }
+
+    #[test]
+    fn parses_untracked_file() {
+        let raw = "? newfile.txt\n";
+        let status = parse_status(raw);
+        assert_eq!(
+            status.untracked,
+            vec![FileEntry {
+                path: "newfile.txt".to_string(),
+                status: "untracked".to_string(),
+                orig_path: None,
+            }]
+        );
+    }
+
+    #[test]
+    fn parses_renamed_file() {
+        let raw = "2 R. N... 100644 100644 100644 aaa bbb R100 new.txt\told.txt\n";
+        let status = parse_status(raw);
+        assert_eq!(
+            status.staged,
+            vec![FileEntry {
+                path: "new.txt".to_string(),
+                status: "renamed".to_string(),
+                orig_path: Some("old.txt".to_string()),
+            }]
+        );
+    }
+
+    #[test]
+    fn parses_conflicted_file() {
+        let raw =
+            "u UU N... 100644 100644 100644 100644 aaa bbb ccc conflict.txt\n";
+        let status = parse_status(raw);
+        assert!(status.has_conflicts);
+        assert_eq!(
+            status.staged,
+            vec![FileEntry {
+                path: "conflict.txt".to_string(),
+                status: "unmerged".to_string(),
+                orig_path: None,
+            }]
+        );
+    }
 }

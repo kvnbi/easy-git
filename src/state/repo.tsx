@@ -20,6 +20,10 @@ export interface ChangedFile {
   status: string;
 }
 
+export function displayStatus(status: string): string {
+  return status === "unmerged" ? "conflict" : status;
+}
+
 export interface LogEntry {
   command: string;
   error?: string;

@@ -249,6 +249,12 @@ h3 {
   gap: 0.4em;
 }
 
+.branch-detached {
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 0.4em 0.6em;
+}
+
 .branch-create-form {
   display: flex;
   gap: 0.3em;
@@ -283,7 +289,10 @@ h3 {
   border-bottom: 1px solid var(--error-border);
 }
 
-.error-banner span {
+.error-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
   overflow-wrap: anywhere;
 }
 
@@ -295,6 +304,14 @@ h3 {
   color: inherit;
   padding: 0.1em 0.4em;
   flex-shrink: 0;
+}
+
+.conflict-banner {
+  padding: 0.6em 1em;
+  background: var(--error-bg);
+  color: var(--error-text);
+  border-bottom: 1px solid var(--error-border);
+  overflow-wrap: anywhere;
 }
 
 .not-a-repo-banner {

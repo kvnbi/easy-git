@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { gitDiff, isGitError } from "../api/git";
-import { useRepo } from "../state/repo";
+import { displayStatus, useRepo } from "../state/repo";
 
 function diffLineClass(line: string): string {
   if (line.startsWith("+") && !line.startsWith("+++")) return "diff-add";
@@ -88,7 +88,7 @@ export function DiffView() {
         <span className="diff-panel-filename" title={selectedFile.path}>
           {selectedFile.path}
         </span>
-        {fileStatus && <span className="diff-panel-badge">{fileStatus}</span>}
+        {fileStatus && <span className="diff-panel-badge">{displayStatus(fileStatus)}</span>}
       </div>
       <DiffBody />
     </div>

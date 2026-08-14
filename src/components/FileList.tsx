@@ -1,5 +1,5 @@
 import type { ChangedFile } from "../state/repo";
-import { useRepo } from "../state/repo";
+import { displayStatus, useRepo } from "../state/repo";
 
 function statusClass(status: string): string {
   switch (status) {
@@ -38,7 +38,7 @@ function FileRow({ file, isStaged }: { file: ChangedFile; isStaged: boolean }) {
         onClick={() => selectFile(file.path, isStaged)}
         title={file.path}
       >
-        <span className="file-status">{file.status}</span>
+        <span className="file-status">{displayStatus(file.status)}</span>
         <span className="file-path">{file.path}</span>
       </button>
     </li>

@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useRepo } from "../state/repo";
 
 export function BranchSwitcher() {
-  const { branches, checkoutBranch, createBranch, busy } = useRepo();
+  const { status, branches, checkoutBranch, createBranch, busy } = useRepo();
   const [creating, setCreating] = useState(false);
   const [newBranchName, setNewBranchName] = useState("");
 
+  const detached = branches.length > 0 && status?.branch == null;
   const current = branches.find((b) => b.is_current)?.name ?? "";
 
   function handleSelect(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -26,13 +27,17 @@ export function BranchSwitcher() {
 
   return (
     <div className="branch-switcher">
-      <select value={current} onChange={handleSelect} disabled={busy}>
-        {branches.map((b) => (
-          <option key={b.name} value={b.name}>
-            {b.name}
-          </option>
-        ))}
-      </select>
+      {detached ? (
+        <span className="branch-detached">Detached</span>
+      ) : (
+        <select value={current} onChange={handleSelect} disabled={busy}>
+          {branches.map((b) => (
+            <option key={b.name} value={b.name}>
+              {b.name}
+            </option>
+          ))}
+        </select>
+      )}
       {creating ? (
         <form onSubmit={handleCreate} className="branch-create-form">
           <input

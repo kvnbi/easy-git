@@ -95,6 +95,27 @@ export function isNotARepoError(err: unknown): boolean {
   return isGitError(err) && err.message.includes("doesn't look like a git repository");
 }
 
+const friendlyErrorPatterns: [string, string][] = [
+  ["no upstream branch", "This branch has no remote to push to yet."],
+  ["Updates were rejected because the remote contains work", "Someone else pushed changes. Pull first, then push again."],
+  ["[rejected]", "Someone else pushed changes. Pull first, then push again."],
+  ["would be overwritten by checkout", "Switching branches would overwrite unsaved changes. Save or stash them first."],
+  ["Please commit your changes or stash them", "Switching branches would overwrite unsaved changes. Save or stash them first."],
+  ["Automatic merge failed", "This created a conflict. Resolve it, then save."],
+  ["CONFLICT", "This created a conflict. Resolve it, then save."],
+  ["Could not resolve host", "Could not reach the remote. Check your internet connection."],
+  ["Could not read from remote repository", "Could not reach the remote. Check your internet connection."],
+  ["Permission denied (publickey)", "Access to the remote was denied. Check your Git credentials."],
+  ["Authentication failed", "Access to the remote was denied. Check your Git credentials."],
+];
+
+export function friendlyErrorMessage(message: string): string | null {
+  for (const [pattern, friendly] of friendlyErrorPatterns) {
+    if (message.includes(pattern)) return friendly;
+  }
+  return null;
+}
+
 export function pickRepoFolder(): Promise<string | null> {
   return invoke("pick_repo_folder");
 }

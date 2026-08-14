@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { friendlyErrorMessage } from "./api/git";
 import { RepoProvider, useRepo } from "./state/repo";
 import { ThemeProvider } from "./state/theme";
 import { TopBar } from "./components/TopBar";
@@ -18,12 +19,26 @@ const GUIDE_SEEN_KEY = "easy-git-guide-seen";
 function ErrorBanner() {
   const { errorMessage, dismissError } = useRepo();
   if (!errorMessage) return null;
+  const friendly = friendlyErrorMessage(errorMessage);
   return (
     <div className="error-banner">
-      <span>{errorMessage}</span>
+      <div className="error-banner-text">
+        {friendly && <strong>{friendly}</strong>}
+        <span>{errorMessage}</span>
+      </div>
       <button type="button" onClick={dismissError} aria-label="Dismiss">
         x
       </button>
+    </div>
+  );
+}
+
+function ConflictBanner() {
+  const { status } = useRepo();
+  if (!status?.has_conflicts) return null;
+  return (
+    <div className="conflict-banner">
+      <span>This project has a conflict. Resolve it in your files, then check them here and save.</span>
     </div>
   );
 }
@@ -82,6 +97,7 @@ function AppShell() {
       <TopBar />
       <ErrorBanner />
       <NotARepoBanner />
+      <ConflictBanner />
       {repoPath ? (
         <div className="body">
           <Sidebar
