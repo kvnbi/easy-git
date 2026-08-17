@@ -140,6 +140,10 @@ export function gitUnstage(repo: string, paths: string[]): Promise<GitActionResu
   return invoke("git_unstage", { repo, paths });
 }
 
+export function gitDiscard(repo: string, path: string): Promise<GitActionResult> {
+  return invoke("git_discard", { repo, path });
+}
+
 export function gitCommit(repo: string, message: string): Promise<GitActionResult> {
   return invoke("git_commit", { repo, message });
 }

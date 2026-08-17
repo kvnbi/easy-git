@@ -594,6 +594,32 @@ h3 {
   min-width: 0;
 }
 
+.file-row-discard {
+  flex-shrink: 0;
+  opacity: 0;
+  border: none;
+  background: transparent;
+  padding: 0.3em;
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+.file-row:hover .file-row-discard,
+.file-row-discard:focus-visible {
+  opacity: 1;
+}
+
+.file-row-discard:hover:not(:disabled) {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
+.discard-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
 .history-list {
   display: flex;
   flex-direction: column;
@@ -982,6 +1008,22 @@ h3 {
   background: var(--selected-bg);
   border-color: var(--selected-bg);
   color: var(--accent);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6em;
+}
+
+.modal-actions button.destructive {
+  background: var(--error-text);
+  color: #ffffff;
+  border-color: var(--error-text);
+}
+
+.modal-actions button.destructive:hover:not(:disabled) {
+  opacity: 0.9;
 }
 
 .modal-close {

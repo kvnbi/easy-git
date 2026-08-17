@@ -18,6 +18,7 @@ export interface SelectedFile {
 export interface ChangedFile {
   path: string;
   status: string;
+  orig_path: string | null;
 }
 
 export function displayStatus(status: string): string {
@@ -54,6 +55,7 @@ interface RepoContextValue {
   stashSave: (message: string) => Promise<void>;
   stashApply: (index: number) => Promise<void>;
   stashDrop: (index: number) => Promise<void>;
+  discardFile: (file: ChangedFile) => Promise<void>;
   selectFile: (path: string, staged: boolean) => void;
   dismissError: () => void;
   dismissNotARepo: () => void;
@@ -63,13 +65,17 @@ const RepoContext = createContext<RepoContextValue | null>(null);
 
 function combineChangedFiles(status: StatusResult | null): ChangedFile[] {
   if (!status) return [];
-  const byPath = new Map<string, string>();
-  for (const f of status.untracked) byPath.set(f.path, f.status);
-  for (const f of status.staged) byPath.set(f.path, f.status);
-  for (const f of status.unstaged) byPath.set(f.path, f.status);
-  return Array.from(byPath.entries())
-    .map(([path, status]) => ({ path, status }))
-    .sort((a, b) => a.path.localeCompare(b.path));
+  const byPath = new Map<string, ChangedFile>();
+  for (const f of status.untracked) {
+    byPath.set(f.path, { path: f.path, status: f.status, orig_path: null });
+  }
+  for (const f of status.staged) {
+    byPath.set(f.path, { path: f.path, status: f.status, orig_path: f.orig_path });
+  }
+  for (const f of status.unstaged) {
+    byPath.set(f.path, { path: f.path, status: f.status, orig_path: f.orig_path });
+  }
+  return Array.from(byPath.values()).sort((a, b) => a.path.localeCompare(b.path));
 }
 
 export function RepoProvider({ children }: { children: ReactNode }) {
@@ -134,6 +140,11 @@ export function RepoProvider({ children }: { children: ReactNode }) {
       const result = await git.gitStatus(repoPath);
       setStatus(result.status);
       logCommand(result.command_run);
+      setSelectedFile((prev) => {
+        if (!prev) return prev;
+        const stillChanged = combineChangedFiles(result.status).some((f) => f.path === prev.path);
+        return stillChanged ? prev : null;
+      });
       await loadBranches(repoPath);
       await loadRemotes(repoPath);
     } catch (err) {
@@ -297,7 +308,6 @@ export function RepoProvider({ children }: { children: ReactNode }) {
         logCommand(stageResult.command_run, stageResult.stderr ?? undefined);
         const commitResult = await git.gitCommit(repoPath, message);
         logCommand(commitResult.command_run, commitResult.stderr ?? undefined);
-        setSelectedFile(null);
         await refreshStatus();
       } catch (err) {
         handleError(err);
@@ -306,6 +316,27 @@ export function RepoProvider({ children }: { children: ReactNode }) {
       }
     },
     [repoPath, status, changedFiles, uncheckedPaths, logCommand, handleError, refreshStatus],
+  );
+
+  const discardFile = useCallback(
+    async (file: ChangedFile) => {
+      if (!repoPath) return;
+      setBusy(true);
+      try {
+        if (file.orig_path) {
+          const origResult = await git.gitDiscard(repoPath, file.orig_path);
+          logCommand(origResult.command_run, origResult.stderr ?? undefined);
+        }
+        const result = await git.gitDiscard(repoPath, file.path);
+        logCommand(result.command_run, result.stderr ?? undefined);
+        await refreshStatus();
+      } catch (err) {
+        handleError(err);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [repoPath, logCommand, handleError, refreshStatus],
   );
 
   const selectFile = useCallback((path: string, staged: boolean) => {
@@ -340,6 +371,7 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     stashSave,
     stashApply,
     stashDrop,
+    discardFile,
     selectFile,
     dismissError,
     dismissNotARepo,

@@ -1,5 +1,8 @@
+import { useState } from "react";
 import type { ChangedFile } from "../state/repo";
 import { displayStatus, useRepo } from "../state/repo";
+import { DiscardConfirm } from "./DiscardConfirm";
+import { DiscardIcon } from "./Icons";
 
 function statusClass(status: string): string {
   switch (status) {
@@ -19,10 +22,24 @@ function statusClass(status: string): string {
   }
 }
 
-function FileRow({ file, isStaged }: { file: ChangedFile; isStaged: boolean }) {
-  const { uncheckedPaths, toggleChecked, selectedFile, selectFile } = useRepo();
+function FileRow({
+  file,
+  isStaged,
+  onRequestDiscard,
+}: {
+  file: ChangedFile;
+  isStaged: boolean;
+  onRequestDiscard: (file: ChangedFile) => void;
+}) {
+  const { uncheckedPaths, toggleChecked, selectedFile, selectFile, busy } = useRepo();
   const checked = !uncheckedPaths.has(file.path);
   const isSelected = selectedFile?.path === file.path;
+  const canDiscard = file.status !== "unmerged";
+
+  function handleDiscard(e: React.MouseEvent) {
+    e.stopPropagation();
+    onRequestDiscard(file);
+  }
 
   return (
     <li className={`file-row ${statusClass(file.status)}${isSelected ? " selected" : ""}`}>
@@ -41,12 +58,25 @@ function FileRow({ file, isStaged }: { file: ChangedFile; isStaged: boolean }) {
         <span className="file-status">{displayStatus(file.status)}</span>
         <span className="file-path">{file.path}</span>
       </button>
+      {canDiscard && (
+        <button
+          type="button"
+          className="file-row-discard"
+          onClick={handleDiscard}
+          disabled={busy}
+          aria-label={`Discard changes to ${file.path}`}
+          title="Discard changes"
+        >
+          <DiscardIcon className="discard-icon" />
+        </button>
+      )}
     </li>
   );
 }
 
 export function FileList() {
-  const { status, changedFiles } = useRepo();
+  const { status, changedFiles, discardFile } = useRepo();
+  const [pendingDiscard, setPendingDiscard] = useState<ChangedFile | null>(null);
 
   if (!status) return null;
 
@@ -60,7 +90,12 @@ export function FileList() {
           <h3>Changed ({changedFiles.length})</h3>
           <ul>
             {changedFiles.map((f) => (
-              <FileRow key={f.path} file={f} isStaged={stagedPaths.has(f.path)} />
+              <FileRow
+                key={f.path}
+                file={f}
+                isStaged={stagedPaths.has(f.path)}
+                onRequestDiscard={setPendingDiscard}
+              />
             ))}
           </ul>
         </>
@@ -70,6 +105,14 @@ export function FileList() {
           <p>Your project is up to date.</p>
         </div>
       )}
+      <DiscardConfirm
+        file={pendingDiscard}
+        onCancel={() => setPendingDiscard(null)}
+        onConfirm={() => {
+          if (pendingDiscard) discardFile(pendingDiscard);
+          setPendingDiscard(null);
+        }}
+      />
     </div>
   );
 }

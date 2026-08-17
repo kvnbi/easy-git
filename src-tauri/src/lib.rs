@@ -5,6 +5,7 @@ use git::branch::{git_branches, git_checkout_branch, git_create_branch};
 use git::commit::{git_commit, git_stage, git_unstage};
 use git::config::git_config_info;
 use git::diff::git_diff;
+use git::discard::git_discard;
 use git::log::{git_log, git_show_commit};
 use git::remote::{git_add_remote, git_pull, git_push, git_push_upstream, git_remotes};
 use git::repo::{git_init, open_repo, pick_repo_folder};
@@ -22,6 +23,7 @@ pub fn run() {
             git_status,
             git_stage,
             git_unstage,
+            git_discard,
             git_commit,
             git_push,
             git_pull,

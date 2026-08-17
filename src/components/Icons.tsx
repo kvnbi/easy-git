@@ -49,6 +49,15 @@ export function GuideIcon({ className }: IconProps) {
   );
 }
 
+export function DiscardIcon({ className }: IconProps) {
+  return (
+    <svg className={className} {...common}>
+      <path d="M6.5 9h8a5 5 0 0 1 0 10h-2.5" />
+      <path d="M9.5 5.5 6 9l3.5 3.5" />
+    </svg>
+  );
+}
+
 export function SettingsIcon({ className }: IconProps) {
   return (
     <svg className={className} {...common}>
