@@ -1,62 +1,57 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { gitStashList, isGitError } from "../api/git";
 import type { StashEntry } from "../api/git";
 import { useRepo } from "../state/repo";
 
 export function Stash() {
-  const { repoPath, changedFiles, stashSave, stashApply, stashDrop, busy } = useRepo();
+  const { repoPath, refreshCount, changedFiles, stashSave, stashRestore, stashDrop, busy } =
+    useRepo();
   const [stashes, setStashes] = useState<StashEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
-  const loadStashes = useCallback(() => {
+  useEffect(() => {
     if (!repoPath) return;
     gitStashList(repoPath)
       .then((result) => setStashes(result.stashes))
       .catch((err) => setError(isGitError(err) ? err.message : String(err)));
-  }, [repoPath]);
-
-  useEffect(() => {
-    loadStashes();
-  }, [loadStashes]);
+  }, [repoPath, refreshCount]);
 
   const hasChanges = changedFiles.length > 0;
 
-  async function handleSave() {
-    await stashSave(message);
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!hasChanges || busy) return;
+    stashSave(message);
     setMessage("");
-    loadStashes();
-  }
-
-  async function handleApply(index: number) {
-    await stashApply(index);
-    loadStashes();
-  }
-
-  async function handleDrop(index: number) {
-    await stashDrop(index);
-    loadStashes();
   }
 
   return (
     <div className="stash-view">
-      <div className="stash-save-row">
-        <input
-          placeholder="What are you setting aside? (optional)"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          disabled={!hasChanges}
-        />
-        <button type="button" onClick={handleSave} disabled={!hasChanges || busy}>
-          Stash Changes
-        </button>
-      </div>
+      {hasChanges ? (
+        <form className="stash-save-row" onSubmit={handleSave}>
+          <input
+            placeholder="What are you setting aside? (optional)"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+          />
+          <button type="submit" disabled={busy}>
+            Stash {changedFiles.length} {changedFiles.length === 1 ? "File" : "Files"}
+          </button>
+        </form>
+      ) : (
+        <p className="stash-hint">
+          Nothing to set aside right now. When you have changes, stashing puts them away so you
+          can come back to them later.
+        </p>
+      )}
 
       {error && <p className="diff-error">{error}</p>}
       {!error && stashes === null && <p className="empty-state">Loading...</p>}
       {!error && stashes?.length === 0 && (
         <div className="empty-block">
           <h2>No Stashes</h2>
+          <p>Anything you set aside shows up here.</p>
         </div>
       )}
 
@@ -68,10 +63,10 @@ export function Stash() {
                 {s.message}
               </span>
               <div className="stash-actions">
-                <button type="button" onClick={() => handleApply(s.index)} disabled={busy}>
-                  Apply
+                <button type="button" onClick={() => stashRestore(s.index)} disabled={busy}>
+                  Restore
                 </button>
-                <button type="button" onClick={() => handleDrop(s.index)} disabled={busy}>
+                <button type="button" onClick={() => stashDrop(s.index)} disabled={busy}>
                   Drop
                 </button>
               </div>

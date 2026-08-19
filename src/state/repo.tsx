@@ -36,6 +36,7 @@ interface RepoContextValue {
   branches: BranchInfo[];
   remotes: RemoteInfo[];
   changedFiles: ChangedFile[];
+  refreshCount: number;
   uncheckedPaths: Set<string>;
   selectedFile: SelectedFile | null;
   commandLog: LogEntry[];
@@ -53,9 +54,10 @@ interface RepoContextValue {
   addRemoteAndPush: (url: string) => Promise<void>;
   setUpstream: (remote: string) => Promise<void>;
   stashSave: (message: string) => Promise<void>;
-  stashApply: (index: number) => Promise<void>;
+  stashRestore: (index: number) => Promise<void>;
   stashDrop: (index: number) => Promise<void>;
   discardFile: (file: ChangedFile) => Promise<void>;
+  revertCommit: (hash: string) => Promise<void>;
   selectFile: (path: string, staged: boolean) => void;
   dismissError: () => void;
   dismissNotARepo: () => void;
@@ -89,6 +91,7 @@ export function RepoProvider({ children }: { children: ReactNode }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [notARepoPath, setNotARepoPath] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [refreshCount, setRefreshCount] = useState(0);
 
   const changedFiles = useMemo(() => combineChangedFiles(status), [status]);
 
@@ -145,8 +148,8 @@ export function RepoProvider({ children }: { children: ReactNode }) {
         const stillChanged = combineChangedFiles(result.status).some((f) => f.path === prev.path);
         return stillChanged ? prev : null;
       });
-      await loadBranches(repoPath);
-      await loadRemotes(repoPath);
+      await Promise.all([loadBranches(repoPath), loadRemotes(repoPath)]);
+      setRefreshCount((n) => n + 1);
     } catch (err) {
       handleError(err);
     }
@@ -159,8 +162,8 @@ export function RepoProvider({ children }: { children: ReactNode }) {
       setSelectedFile(null);
       setNotARepoPath(null);
       logCommand(result.command_run);
-      await loadBranches(result.path);
-      await loadRemotes(result.path);
+      await Promise.all([loadBranches(result.path), loadRemotes(result.path)]);
+      setRefreshCount((n) => n + 1);
     },
     [logCommand, loadBranches, loadRemotes],
   );
@@ -276,13 +279,18 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     [runMutation],
   );
 
-  const stashApply = useCallback(
-    (index: number) => runMutation((path) => git.gitStashApply(path, index)),
+  const stashRestore = useCallback(
+    (index: number) => runMutation((path) => git.gitStashRestore(path, index)),
     [runMutation],
   );
 
   const stashDrop = useCallback(
     (index: number) => runMutation((path) => git.gitStashDrop(path, index)),
+    [runMutation],
+  );
+
+  const revertCommit = useCallback(
+    (hash: string) => runMutation((path) => git.gitRevert(path, hash)),
     [runMutation],
   );
 
@@ -352,6 +360,7 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     branches,
     remotes,
     changedFiles,
+    refreshCount,
     uncheckedPaths,
     selectedFile,
     commandLog,
@@ -369,9 +378,10 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     addRemoteAndPush,
     setUpstream,
     stashSave,
-    stashApply,
+    stashRestore,
     stashDrop,
     discardFile,
+    revertCommit,
     selectFile,
     dismissError,
     dismissNotARepo,

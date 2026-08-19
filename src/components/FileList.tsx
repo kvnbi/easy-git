@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ChangedFile } from "../state/repo";
 import { displayStatus, useRepo } from "../state/repo";
-import { DiscardConfirm } from "./DiscardConfirm";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { DiscardIcon } from "./Icons";
 
 function statusClass(status: string): string {
@@ -105,14 +105,19 @@ export function FileList() {
           <p>Your project is up to date.</p>
         </div>
       )}
-      <DiscardConfirm
-        file={pendingDiscard}
-        onCancel={() => setPendingDiscard(null)}
-        onConfirm={() => {
-          if (pendingDiscard) discardFile(pendingDiscard);
-          setPendingDiscard(null);
-        }}
-      />
+      {pendingDiscard && (
+        <ConfirmDialog
+          title="Discard Changes"
+          message={`${pendingDiscard.path} will go back to how it looked in your last save. This can't be undone.`}
+          confirmLabel="Discard"
+          destructive
+          onCancel={() => setPendingDiscard(null)}
+          onConfirm={() => {
+            discardFile(pendingDiscard);
+            setPendingDiscard(null);
+          }}
+        />
+      )}
     </div>
   );
 }

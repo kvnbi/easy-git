@@ -594,7 +594,8 @@ h3 {
   min-width: 0;
 }
 
-.file-row-discard {
+.file-row-discard,
+.history-revert {
   flex-shrink: 0;
   opacity: 0;
   border: none;
@@ -605,7 +606,9 @@ h3 {
 }
 
 .file-row:hover .file-row-discard,
-.file-row-discard:focus-visible {
+.file-row-discard:focus-visible,
+.history-list li:hover .history-revert,
+.history-revert:focus-visible {
   opacity: 1;
 }
 
@@ -614,7 +617,13 @@ h3 {
   color: var(--error-text);
 }
 
-.discard-icon {
+.history-revert:hover:not(:disabled) {
+  background: var(--tint-bg);
+  color: var(--accent);
+}
+
+.discard-icon,
+.revert-icon {
   width: 14px;
   height: 14px;
   display: block;
@@ -624,6 +633,12 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 0.15em;
+}
+
+.history-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.2em;
 }
 
 .history-list li.selected .history-row {
@@ -636,7 +651,8 @@ h3 {
   flex-direction: column;
   align-items: flex-start;
   gap: 0.2em;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   border: none;
   background: transparent;
   box-shadow: none;
@@ -853,6 +869,12 @@ h3 {
 
 .stash-save-row input {
   flex: 1;
+}
+
+.stash-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0 0 0.9em;
 }
 
 .stash-list {

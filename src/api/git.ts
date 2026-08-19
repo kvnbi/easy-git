@@ -99,6 +99,8 @@ const friendlyErrorPatterns: [string, string][] = [
   ["no upstream branch", "This branch has no remote to push to yet."],
   ["Updates were rejected because the remote contains work", "Someone else pushed changes. Pull first, then push again."],
   ["[rejected]", "Someone else pushed changes. Pull first, then push again."],
+  ["is a merge but no -m option was given", "This commit merged two branches. easy-git cannot undo those yet."],
+  ["would be overwritten by revert", "Save or stash your changes first, then undo this commit."],
   ["would be overwritten by checkout", "Switching branches would overwrite unsaved changes. Save or stash them first."],
   ["Please commit your changes or stash them", "Switching branches would overwrite unsaved changes. Save or stash them first."],
   ["Automatic merge failed", "This created a conflict. Resolve it, then save."],
@@ -180,6 +182,10 @@ export function gitShowCommit(repo: string, hash: string): Promise<DiffResult> {
   return invoke("git_show_commit", { repo, hash });
 }
 
+export function gitRevert(repo: string, hash: string): Promise<GitActionResult> {
+  return invoke("git_revert", { repo, hash });
+}
+
 export function gitRemotes(repo: string): Promise<RemoteInfo[]> {
   return invoke("git_remotes", { repo });
 }
@@ -204,8 +210,8 @@ export function gitStashList(repo: string): Promise<StashListResult> {
   return invoke("git_stash_list", { repo });
 }
 
-export function gitStashApply(repo: string, index: number): Promise<GitActionResult> {
-  return invoke("git_stash_apply", { repo, index });
+export function gitStashRestore(repo: string, index: number): Promise<GitActionResult> {
+  return invoke("git_stash_restore", { repo, index });
 }
 
 export function gitStashDrop(repo: string, index: number): Promise<GitActionResult> {

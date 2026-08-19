@@ -6,5 +6,6 @@ pub mod discard;
 pub mod log;
 pub mod remote;
 pub mod repo;
+pub mod revert;
 pub mod stash;
 pub mod status;

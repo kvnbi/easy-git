@@ -19,7 +19,7 @@ export function RemoteStatus() {
   if (remotes.length > 0) {
     return (
       <button type="button" onClick={() => setUpstream(remotes[0].name)} disabled={busy}>
-        Set Upstream
+        Publish Branch
       </button>
     );
   }
@@ -39,6 +39,9 @@ export function RemoteStatus() {
       >
         <input
           autoFocus
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           placeholder="remote URL"
           value={url}
           onChange={(e) => setUrl(e.target.value)}

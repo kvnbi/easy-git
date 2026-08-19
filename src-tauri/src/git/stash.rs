@@ -52,9 +52,9 @@ pub fn git_stash_list(repo: String) -> Result<StashListResult, GitError> {
 }
 
 #[tauri::command]
-pub fn git_stash_apply(repo: String, index: i32) -> Result<GitActionResult, GitError> {
+pub fn git_stash_restore(repo: String, index: i32) -> Result<GitActionResult, GitError> {
     let reference = format!("stash@{{{index}}}");
-    let output = run_git(&repo, &["stash", "apply", &reference])?;
+    let output = run_git(&repo, &["stash", "pop", &reference])?;
     Ok(ok_result(output))
 }
 
@@ -63,4 +63,52 @@ pub fn git_stash_drop(repo: String, index: i32) -> Result<GitActionResult, GitEr
     let reference = format!("stash@{{{index}}}");
     let output = run_git(&repo, &["stash", "drop", &reference])?;
     Ok(ok_result(output))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::TempRepo;
+
+    #[test]
+    fn restore_brings_work_back_and_removes_the_entry() {
+        let repo = TempRepo::new("stash-restore");
+        repo.commit("a.txt", "base\n", "first");
+        repo.write("a.txt", "my work\n");
+        git_stash_save(repo.dir(), "wip".to_string()).unwrap();
+        assert_eq!(repo.stash_count(), 1);
+        assert_eq!(std::fs::read_to_string(repo.path.join("a.txt")).unwrap(), "base\n");
+
+        git_stash_restore(repo.dir(), 0).unwrap();
+
+        assert_eq!(std::fs::read_to_string(repo.path.join("a.txt")).unwrap(), "my work\n");
+        assert_eq!(repo.stash_count(), 0);
+    }
+
+    #[test]
+    fn restore_keeps_the_entry_when_it_conflicts() {
+        let repo = TempRepo::new("stash-conflict");
+        repo.commit("a.txt", "base\n", "first");
+        repo.write("a.txt", "my work\n");
+        git_stash_save(repo.dir(), "wip".to_string()).unwrap();
+        repo.commit("a.txt", "someone else\n", "conflicting commit");
+
+        let err = git_stash_restore(repo.dir(), 0).unwrap_err();
+
+        assert!(err.message.contains("CONFLICT"));
+        assert_eq!(repo.stash_count(), 1);
+    }
+
+    #[test]
+    fn drop_removes_the_entry_without_touching_files() {
+        let repo = TempRepo::new("stash-drop");
+        repo.commit("a.txt", "base\n", "first");
+        repo.write("a.txt", "my work\n");
+        git_stash_save(repo.dir(), "wip".to_string()).unwrap();
+
+        git_stash_drop(repo.dir(), 0).unwrap();
+
+        assert_eq!(repo.stash_count(), 0);
+        assert_eq!(std::fs::read_to_string(repo.path.join("a.txt")).unwrap(), "base\n");
+    }
 }

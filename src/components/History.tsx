@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { gitLog, gitShowCommit, isGitError } from "../api/git";
 import type { CommitEntry } from "../api/git";
 import { useRepo } from "../state/repo";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { RevertIcon } from "./Icons";
 
 function diffLineClass(line: string): string {
   if (line.startsWith("+") && !line.startsWith("+++")) return "diff-add";
@@ -66,25 +68,23 @@ function CommitDiff({ hash }: { hash: string | null }) {
 }
 
 export function History() {
-  const { repoPath } = useRepo();
+  const { repoPath, refreshCount, revertCommit, busy } = useRepo();
   const [commits, setCommits] = useState<CommitEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [pendingRevert, setPendingRevert] = useState<CommitEntry | null>(null);
 
   useEffect(() => {
     if (!repoPath) return;
-    let cancelled = false;
     gitLog(repoPath)
       .then((result) => {
-        if (!cancelled) setCommits(result.commits);
+        setCommits(result.commits);
+        setSelected((prev) =>
+          prev && result.commits.some((c) => c.hash === prev) ? prev : null,
+        );
       })
-      .catch((err) => {
-        if (!cancelled) setError(isGitError(err) ? err.message : String(err));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [repoPath]);
+      .catch((err) => setError(isGitError(err) ? err.message : String(err)));
+  }, [repoPath, refreshCount]);
 
   return (
     <div className="main-split">
@@ -113,6 +113,16 @@ export function History() {
                     <span className="history-date">{c.date}</span>
                   </span>
                 </button>
+                <button
+                  type="button"
+                  className="history-revert"
+                  onClick={() => setPendingRevert(c)}
+                  disabled={busy}
+                  aria-label={`Undo commit ${c.short_hash}`}
+                  title="Undo this commit"
+                >
+                  <RevertIcon className="revert-icon" />
+                </button>
               </li>
             ))}
           </ul>
@@ -121,6 +131,18 @@ export function History() {
       <div className="diff-panel">
         <CommitDiff hash={selected} />
       </div>
+      {pendingRevert && (
+        <ConfirmDialog
+          title="Undo This Commit"
+          message={`A new commit will be added that undoes "${pendingRevert.message}". Nothing already in your history is removed.`}
+          confirmLabel="Undo Commit"
+          onCancel={() => setPendingRevert(null)}
+          onConfirm={() => {
+            revertCommit(pendingRevert.hash);
+            setPendingRevert(null);
+          }}
+        />
+      )}
     </div>
   );
 }

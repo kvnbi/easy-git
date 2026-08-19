@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::process::Command;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct GitError {
     pub command_run: String,
     pub message: String,
@@ -13,7 +13,7 @@ pub struct GitOutput {
     pub command_run: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct GitActionResult {
     pub command_run: String,
     pub stderr: Option<String>,

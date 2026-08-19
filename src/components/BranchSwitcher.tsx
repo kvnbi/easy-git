@@ -42,6 +42,9 @@ export function BranchSwitcher() {
         <form onSubmit={handleCreate} className="branch-create-form">
           <input
             autoFocus
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             placeholder="new-branch-name"
             value={newBranchName}
             onChange={(e) => setNewBranchName(e.target.value)}
