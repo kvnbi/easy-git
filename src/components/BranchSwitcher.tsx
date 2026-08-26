@@ -7,7 +7,11 @@ export function BranchSwitcher() {
   const [newBranchName, setNewBranchName] = useState("");
 
   const detached = branches.length > 0 && status?.branch == null;
-  const current = branches.find((b) => b.is_current)?.name ?? "";
+  const current = branches.find((b) => b.is_current)?.name ?? status?.branch ?? "";
+  const names = branches.map((b) => b.name);
+  if (current && !names.includes(current)) {
+    names.unshift(current);
+  }
 
   function handleSelect(e: React.ChangeEvent<HTMLSelectElement>) {
     const name = e.target.value;
@@ -31,9 +35,9 @@ export function BranchSwitcher() {
         <span className="branch-detached">Detached</span>
       ) : (
         <select value={current} onChange={handleSelect} disabled={busy}>
-          {branches.map((b) => (
-            <option key={b.name} value={b.name}>
-              {b.name}
+          {names.map((name) => (
+            <option key={name} value={name}>
+              {name}
             </option>
           ))}
         </select>

@@ -97,6 +97,7 @@ export function isNotARepoError(err: unknown): boolean {
 
 const friendlyErrorPatterns: [string, string][] = [
   ["no upstream branch", "This branch has no remote to push to yet."],
+  ["does not match any", "There is nothing to send yet. Save your work first."],
   ["Updates were rejected because the remote contains work", "Someone else pushed changes. Pull first, then push again."],
   ["[rejected]", "Someone else pushed changes. Pull first, then push again."],
   ["is a merge but no -m option was given", "This commit merged two branches. easy-git cannot undo those yet."],

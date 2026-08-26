@@ -20,6 +20,18 @@ impl TempRepo {
         repo
     }
 
+    pub fn clone_of(source: &TempRepo, name: &str) -> Self {
+        let path = std::env::temp_dir().join(format!("easy-git-test-{name}"));
+        let _ = fs::remove_dir_all(&path);
+        let parent = std::env::temp_dir().to_string_lossy().into_owned();
+        run_git(&parent, &["clone", &source.dir(), &path.to_string_lossy()]).unwrap();
+        let repo = TempRepo { path };
+        repo.git(&["config", "user.email", "test@example.com"]);
+        repo.git(&["config", "user.name", "Test"]);
+        repo.git(&["config", "commit.gpgsign", "false"]);
+        repo
+    }
+
     pub fn dir(&self) -> String {
         self.path.to_string_lossy().into_owned()
     }
