@@ -3,7 +3,7 @@ import { BranchSwitcher } from "./BranchSwitcher";
 import { RemoteStatus } from "./RemoteStatus";
 
 export function TopBar() {
-  const { repoPath, status, pickAndOpenRepo, push, pull, busy } = useRepo();
+  const { repoPath, status, pickAndOpenRepo, refresh, push, pull, busy } = useRepo();
 
   return (
     <div className="toolbar">
@@ -22,6 +22,9 @@ export function TopBar() {
       {repoPath && (
         <div className="toolbar-right">
           <RemoteStatus />
+          <button type="button" onClick={() => refresh()} disabled={busy}>
+            Refresh
+          </button>
           <button type="button" onClick={() => pull()} disabled={busy}>
             Pull{status && status.behind > 0 ? ` (${status.behind})` : ""}
           </button>

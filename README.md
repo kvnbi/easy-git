@@ -2,6 +2,8 @@
 
 A simple Git client. It is easy to use.
 
+u need rust and node installed
+
 ## Run
 
 ```bash

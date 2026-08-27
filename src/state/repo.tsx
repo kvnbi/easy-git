@@ -44,6 +44,7 @@ interface RepoContextValue {
   notARepoPath: string | null;
   busy: boolean;
   pickAndOpenRepo: () => Promise<void>;
+  refresh: () => Promise<void>;
   initRepo: () => Promise<void>;
   toggleChecked: (path: string) => void;
   save: (message: string) => Promise<void>;
@@ -96,8 +97,13 @@ export function RepoProvider({ children }: { children: ReactNode }) {
   const changedFiles = useMemo(() => combineChangedFiles(status), [status]);
 
   useEffect(() => {
-    setUncheckedPaths(new Set());
-  }, [status]);
+    setUncheckedPaths((prev) => {
+      if (prev.size === 0) return prev;
+      const present = new Set(changedFiles.map((f) => f.path));
+      const next = new Set([...prev].filter((path) => present.has(path)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [changedFiles]);
 
   const logCommand = useCallback((command: string, error?: string) => {
     setCommandLog((log) => [{ command, error }, ...log].slice(0, 200));
@@ -137,12 +143,14 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     [handleError],
   );
 
-  const refreshStatus = useCallback(async () => {
+  const refreshStatus = useCallback(async (silent = false) => {
     if (!repoPath) return;
     try {
       const result = await git.gitStatus(repoPath);
       setStatus(result.status);
-      logCommand(result.command_run);
+      if (!silent) {
+        logCommand(result.command_run);
+      }
       setSelectedFile((prev) => {
         if (!prev) return prev;
         const stillChanged = combineChangedFiles(result.status).some((f) => f.path === prev.path);
@@ -167,6 +175,19 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     },
     [logCommand, loadBranches, loadRemotes],
   );
+
+  useEffect(() => {
+    if (!repoPath) return;
+    function handleFocus() {
+      if (!busy) {
+        refreshStatus(true);
+      }
+    }
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [repoPath, busy, refreshStatus]);
+
+  const refresh = useCallback(() => refreshStatus(), [refreshStatus]);
 
   const pickAndOpenRepo = useCallback(async () => {
     setBusy(true);
@@ -368,6 +389,7 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     notARepoPath,
     busy,
     pickAndOpenRepo,
+    refresh,
     initRepo,
     toggleChecked,
     save,
