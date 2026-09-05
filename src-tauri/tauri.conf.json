@@ -14,7 +14,9 @@
       {
         "title": "easy-git",
         "width": 1000,
-        "height": 600
+        "height": 600,
+        "minWidth": 1000,
+        "minHeight": 500
       }
     ],
     "security": {
