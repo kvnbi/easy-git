@@ -13,7 +13,7 @@ impl TempRepo {
         let _ = fs::remove_dir_all(&path);
         fs::create_dir_all(&path).unwrap();
         let repo = TempRepo { path };
-        repo.git(&["init"]);
+        repo.git(&["init", "-b", "main"]);
         repo.git(&["config", "user.email", "test@example.com"]);
         repo.git(&["config", "user.name", "Test"]);
         repo.git(&["config", "commit.gpgsign", "false"]);

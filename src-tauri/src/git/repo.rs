@@ -33,7 +33,7 @@ pub fn open_repo(path: String) -> Result<OpenRepoResult, GitError> {
 
 #[tauri::command]
 pub fn git_init(path: String) -> Result<GitActionResult, GitError> {
-    let output = run_git(&path, &["init"])?;
+    let output = run_git(&path, &["init", "-b", "main"])?;
     Ok(ok_result(output))
 }
 
