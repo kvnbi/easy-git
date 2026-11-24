@@ -40,64 +40,54 @@ fn label_for(code: char) -> &'static str {
     }
 }
 
-pub fn parse_status(raw: &str) -> StatusResult {
-    let mut branch = None;
-    let mut upstream = None;
-    let mut ahead = 0;
-    let mut behind = 0;
-    let mut staged = Vec::new();
-    let mut unstaged = Vec::new();
-    let mut untracked = Vec::new();
-    let mut has_conflicts = false;
+fn parse_status(raw: &str) -> StatusResult {
+    let mut status = StatusResult {
+        branch: None,
+        upstream: None,
+        ahead: 0,
+        behind: 0,
+        staged: Vec::new(),
+        unstaged: Vec::new(),
+        untracked: Vec::new(),
+        has_conflicts: false,
+    };
 
-    for line in raw.lines() {
-        if line.is_empty() {
-            continue;
-        }
-
-        if let Some(rest) = line.strip_prefix("# branch.head ") {
+    let mut records = raw.split('\0');
+    while let Some(record) = records.next() {
+        if let Some(rest) = record.strip_prefix("# branch.head ") {
             if rest != "(detached)" {
-                branch = Some(rest.to_string());
+                status.branch = Some(rest.to_string());
             }
-        } else if let Some(rest) = line.strip_prefix("# branch.upstream ") {
-            upstream = Some(rest.to_string());
-        } else if let Some(rest) = line.strip_prefix("# branch.ab ") {
+        } else if let Some(rest) = record.strip_prefix("# branch.upstream ") {
+            status.upstream = Some(rest.to_string());
+        } else if let Some(rest) = record.strip_prefix("# branch.ab ") {
             for part in rest.split_whitespace() {
                 if let Some(n) = part.strip_prefix('+') {
-                    ahead = n.parse().unwrap_or(0);
+                    status.ahead = n.parse().unwrap_or(0);
                 } else if let Some(n) = part.strip_prefix('-') {
-                    behind = n.parse().unwrap_or(0);
+                    status.behind = n.parse().unwrap_or(0);
                 }
             }
-        } else if let Some(rest) = line.strip_prefix("? ") {
-            untracked.push(FileEntry {
-                path: rest.to_string(),
+        } else if let Some(path) = record.strip_prefix("? ") {
+            status.untracked.push(FileEntry {
+                path: path.to_string(),
                 status: "untracked".to_string(),
                 orig_path: None,
             });
-        } else if let Some(rest) = line.strip_prefix("1 ") {
+        } else if let Some(rest) = record.strip_prefix("1 ") {
             let mut parts = rest.splitn(8, ' ');
             let xy = parts.next().unwrap_or("");
-            for _ in 0..6 {
-                parts.next();
-            }
-            let path = parts.next().unwrap_or("").to_string();
-            push_ordinary_entry(&mut staged, &mut unstaged, xy, path, None);
-        } else if let Some(rest) = line.strip_prefix("2 ") {
+            let path = parts.nth(6).unwrap_or("");
+            push_ordinary_entry(&mut status, xy, path, None);
+        } else if let Some(rest) = record.strip_prefix("2 ") {
             let mut parts = rest.splitn(9, ' ');
             let xy = parts.next().unwrap_or("");
-            for _ in 0..7 {
-                parts.next();
-            }
-            let path_and_orig = parts.next().unwrap_or("");
-            let mut split = path_and_orig.splitn(2, '\t');
-            let path = split.next().unwrap_or("").to_string();
-            let orig = split.next().map(|s| s.to_string());
-            push_ordinary_entry(&mut staged, &mut unstaged, xy, path, orig);
-        } else if line.starts_with("u ") {
-            has_conflicts = true;
-            if let Some(path) = line.split_whitespace().last() {
-                staged.push(FileEntry {
+            let path = parts.nth(7).unwrap_or("");
+            push_ordinary_entry(&mut status, xy, path, records.next());
+        } else if let Some(rest) = record.strip_prefix("u ") {
+            status.has_conflicts = true;
+            if let Some(path) = rest.splitn(10, ' ').nth(9) {
+                status.staged.push(FileEntry {
                     path: path.to_string(),
                     status: "unmerged".to_string(),
                     orig_path: None,
@@ -106,48 +96,30 @@ pub fn parse_status(raw: &str) -> StatusResult {
         }
     }
 
-    StatusResult {
-        branch,
-        upstream,
-        ahead,
-        behind,
-        staged,
-        unstaged,
-        untracked,
-        has_conflicts,
-    }
+    status
 }
 
-fn push_ordinary_entry(
-    staged: &mut Vec<FileEntry>,
-    unstaged: &mut Vec<FileEntry>,
-    xy: &str,
-    path: String,
-    orig_path: Option<String>,
-) {
+fn push_ordinary_entry(status: &mut StatusResult, xy: &str, path: &str, orig_path: Option<&str>) {
     let mut chars = xy.chars();
     let x = chars.next().unwrap_or('.');
     let y = chars.next().unwrap_or('.');
+    let entry = |code| FileEntry {
+        path: path.to_string(),
+        status: label_for(code).to_string(),
+        orig_path: orig_path.map(str::to_string),
+    };
 
     if x != '.' {
-        staged.push(FileEntry {
-            path: path.clone(),
-            status: label_for(x).to_string(),
-            orig_path: orig_path.clone(),
-        });
+        status.staged.push(entry(x));
     }
     if y != '.' {
-        unstaged.push(FileEntry {
-            path,
-            status: label_for(y).to_string(),
-            orig_path,
-        });
+        status.unstaged.push(entry(y));
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_status(repo: String) -> Result<StatusCommandResult, GitError> {
-    let output = run_git(&repo, &["status", "--porcelain=v2", "--branch"])?;
+    let output = run_git(&repo, &["status", "--porcelain=v2", "--branch", "-z"])?;
     Ok(StatusCommandResult {
         status: parse_status(&output.stdout),
         command_run: output.command_run,
@@ -157,10 +129,19 @@ pub fn git_status(repo: String) -> Result<StatusCommandResult, GitError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::TempRepo;
+
+    fn entry(path: &str, status: &str, orig_path: Option<&str>) -> FileEntry {
+        FileEntry {
+            path: path.to_string(),
+            status: status.to_string(),
+            orig_path: orig_path.map(str::to_string),
+        }
+    }
 
     #[test]
     fn parses_branch_and_ahead_behind() {
-        let raw = "# branch.oid abc123\n# branch.head main\n# branch.upstream origin/main\n# branch.ab +2 -3\n";
+        let raw = "# branch.oid abc123\0# branch.head main\0# branch.upstream origin/main\0# branch.ab +2 -3\0";
         let status = parse_status(raw);
         assert_eq!(status.branch, Some("main".to_string()));
         assert_eq!(status.upstream, Some("origin/main".to_string()));
@@ -170,74 +151,42 @@ mod tests {
 
     #[test]
     fn detached_head_leaves_branch_none() {
-        let raw = "# branch.oid abc123\n# branch.head (detached)\n";
-        let status = parse_status(raw);
+        let status = parse_status("# branch.oid abc123\0# branch.head (detached)\0");
         assert_eq!(status.branch, None);
     }
 
     #[test]
     fn parses_partially_staged_modified_file() {
-        let raw = "1 MM N... 100644 100644 100644 aaa bbb file.txt\n";
-        let status = parse_status(raw);
-        assert_eq!(
-            status.staged,
-            vec![FileEntry {
-                path: "file.txt".to_string(),
-                status: "modified".to_string(),
-                orig_path: None,
-            }]
-        );
-        assert_eq!(
-            status.unstaged,
-            vec![FileEntry {
-                path: "file.txt".to_string(),
-                status: "modified".to_string(),
-                orig_path: None,
-            }]
-        );
+        let status = parse_status("1 MM N... 100644 100644 100644 aaa bbb file.txt\0");
+        assert_eq!(status.staged, vec![entry("file.txt", "modified", None)]);
+        assert_eq!(status.unstaged, vec![entry("file.txt", "modified", None)]);
     }
 
     #[test]
     fn parses_untracked_file() {
-        let raw = "? newfile.txt\n";
-        let status = parse_status(raw);
-        assert_eq!(
-            status.untracked,
-            vec![FileEntry {
-                path: "newfile.txt".to_string(),
-                status: "untracked".to_string(),
-                orig_path: None,
-            }]
-        );
+        let status = parse_status("? newfile.txt\0");
+        assert_eq!(status.untracked, vec![entry("newfile.txt", "untracked", None)]);
     }
 
     #[test]
     fn parses_renamed_file() {
-        let raw = "2 R. N... 100644 100644 100644 aaa bbb R100 new.txt\told.txt\n";
-        let status = parse_status(raw);
-        assert_eq!(
-            status.staged,
-            vec![FileEntry {
-                path: "new.txt".to_string(),
-                status: "renamed".to_string(),
-                orig_path: Some("old.txt".to_string()),
-            }]
-        );
+        let status = parse_status("2 R. N... 100644 100644 100644 aaa bbb R100 new.txt\0old.txt\0? x.txt\0");
+        assert_eq!(status.staged, vec![entry("new.txt", "renamed", Some("old.txt"))]);
+        assert_eq!(status.untracked, vec![entry("x.txt", "untracked", None)]);
     }
 
     #[test]
-    fn parses_conflicted_file() {
-        let raw =
-            "u UU N... 100644 100644 100644 100644 aaa bbb ccc conflict.txt\n";
-        let status = parse_status(raw);
+    fn parses_conflicted_file_with_spaces() {
+        let status = parse_status("u UU N... 100644 100644 100644 100644 aaa bbb ccc my conflict.txt\0");
         assert!(status.has_conflicts);
-        assert_eq!(
-            status.staged,
-            vec![FileEntry {
-                path: "conflict.txt".to_string(),
-                status: "unmerged".to_string(),
-                orig_path: None,
-            }]
-        );
+        assert_eq!(status.staged, vec![entry("my conflict.txt", "unmerged", None)]);
+    }
+
+    #[test]
+    fn reports_unusual_file_names_verbatim() {
+        let repo = TempRepo::new("status-names");
+        repo.write("café notes.txt", "hi\n");
+        let status = git_status(repo.dir()).unwrap().status;
+        assert_eq!(status.untracked, vec![entry("café notes.txt", "untracked", None)]);
     }
 }

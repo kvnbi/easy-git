@@ -8,13 +8,13 @@ pub struct DiffResult {
     pub command_run: String,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_diff(repo: String, path: String, staged: bool) -> Result<DiffResult, GitError> {
-    let args: Vec<&str> = if staged {
-        vec!["diff", "--staged", "--", &path]
-    } else {
-        vec!["diff", "--", &path]
-    };
+    let mut args = vec!["diff", "--no-color", "--no-ext-diff"];
+    if staged {
+        args.push("--staged");
+    }
+    args.extend(["--", &path]);
     let output = run_git(&repo, &args)?;
     Ok(DiffResult {
         diff: output.stdout,

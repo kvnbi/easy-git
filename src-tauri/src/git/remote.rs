@@ -10,19 +10,19 @@ pub struct RemoteInfo {
     pub url: String,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_push(repo: String) -> Result<GitActionResult, GitError> {
     let output = run_git(&repo, &["push"])?;
     Ok(ok_result(output))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_pull(repo: String) -> Result<GitActionResult, GitError> {
     let output = run_git(&repo, &["pull"])?;
     Ok(ok_result(output))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_remotes(repo: String) -> Result<Vec<RemoteInfo>, GitError> {
     let output = run_git(&repo, &["remote", "-v"])?;
     let mut seen = HashSet::new();
@@ -39,13 +39,13 @@ pub fn git_remotes(repo: String) -> Result<Vec<RemoteInfo>, GitError> {
     Ok(remotes)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_add_remote(repo: String, name: String, url: String) -> Result<GitActionResult, GitError> {
     let output = run_git(&repo, &["remote", "add", &name, &url])?;
     Ok(ok_result(output))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_push_upstream(
     repo: String,
     remote: String,

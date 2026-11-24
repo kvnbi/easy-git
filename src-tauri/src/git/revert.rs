@@ -1,6 +1,6 @@
 use crate::exec::{ok_result, run_git, GitActionResult, GitError};
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_revert(repo: String, hash: String) -> Result<GitActionResult, GitError> {
     let output = run_git(&repo, &["revert", "--no-edit", &hash])?;
     Ok(ok_result(output))

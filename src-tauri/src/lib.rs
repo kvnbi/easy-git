@@ -15,7 +15,6 @@ use git::revert::git_revert;
 use git::stash::{git_stash_drop, git_stash_list, git_stash_restore, git_stash_save};
 use git::status::git_status;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())

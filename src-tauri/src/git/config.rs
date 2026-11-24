@@ -19,7 +19,7 @@ fn get_config_value(repo: &str, key: &str) -> Option<String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_config_info(repo: String) -> GitConfigInfo {
     GitConfigInfo {
         user_name: get_config_value(&repo, "user.name"),

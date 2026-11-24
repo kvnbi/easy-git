@@ -1,46 +1,16 @@
-import { useEffect, useState } from "react";
-import { gitLog, gitShowCommit, isGitError } from "../api/git";
+import { useState } from "react";
+import { gitLog, gitShowCommit } from "../api/git";
 import type { CommitEntry } from "../api/git";
-import { useRepo } from "../state/repo";
+import { useRepo, useRepoQuery } from "../state/repo";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { DiffLines } from "./DiffView";
 import { RevertIcon } from "./Icons";
 
-function diffLineClass(line: string): string {
-  if (line.startsWith("+") && !line.startsWith("+++")) return "diff-add";
-  if (line.startsWith("-") && !line.startsWith("---")) return "diff-remove";
-  if (line.startsWith("@@")) return "diff-hunk";
-  return "diff-context";
-}
-
 function CommitDiff({ hash }: { hash: string | null }) {
-  const { repoPath } = useRepo();
-  const [diff, setDiff] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!repoPath || !hash) {
-      setDiff(null);
-      setError(null);
-      return;
-    }
-    let cancelled = false;
-    gitShowCommit(repoPath, hash)
-      .then((result) => {
-        if (!cancelled) {
-          setDiff(result.diff);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setDiff(null);
-          setError(isGitError(err) ? err.message : String(err));
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [repoPath, hash]);
+  const { data, error } = useRepoQuery(
+    hash ? (repo) => gitShowCommit(repo, hash) : null,
+    hash ?? "",
+  );
 
   if (!hash) {
     return (
@@ -53,38 +23,20 @@ function CommitDiff({ hash }: { hash: string | null }) {
   if (error) {
     return <div className="diff-body diff-error">{error}</div>;
   }
-  if (diff === null) {
+  if (data === null) {
     return <div className="diff-body empty-state">Loading changes...</div>;
   }
-  return (
-    <pre className="diff-body">
-      {diff.split("\n").map((line, i) => (
-        <div key={i} className={diffLineClass(line)}>
-          {line || " "}
-        </div>
-      ))}
-    </pre>
-  );
+  return <DiffLines diff={data.diff} />;
 }
 
 export function History() {
-  const { repoPath, refreshCount, revertCommit, busy } = useRepo();
-  const [commits, setCommits] = useState<CommitEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { revertCommit, busy } = useRepo();
+  const { data, error } = useRepoQuery(gitLog);
   const [selected, setSelected] = useState<string | null>(null);
   const [pendingRevert, setPendingRevert] = useState<CommitEntry | null>(null);
 
-  useEffect(() => {
-    if (!repoPath) return;
-    gitLog(repoPath)
-      .then((result) => {
-        setCommits(result.commits);
-        setSelected((prev) =>
-          prev && result.commits.some((c) => c.hash === prev) ? prev : null,
-        );
-      })
-      .catch((err) => setError(isGitError(err) ? err.message : String(err)));
-  }, [repoPath, refreshCount]);
+  const commits = data?.commits ?? null;
+  const activeHash = commits?.some((c) => c.hash === selected) ? selected : null;
 
   return (
     <div className="main-split">
@@ -99,7 +51,7 @@ export function History() {
         {commits && commits.length > 0 && (
           <ul className="history-list">
             {commits.map((c) => (
-              <li key={c.hash} className={c.hash === selected ? "selected" : ""}>
+              <li key={c.hash} className={c.hash === activeHash ? "selected" : ""}>
                 <button
                   type="button"
                   className="history-row"
@@ -129,7 +81,7 @@ export function History() {
         )}
       </div>
       <div className="diff-panel">
-        <CommitDiff hash={selected} />
+        <CommitDiff hash={activeHash} />
       </div>
       {pendingRevert && (
         <ConfirmDialog

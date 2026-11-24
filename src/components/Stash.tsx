@@ -1,29 +1,19 @@
-import { useEffect, useState } from "react";
-import { gitStashList, isGitError } from "../api/git";
-import type { StashEntry } from "../api/git";
-import { useRepo } from "../state/repo";
+import { useState } from "react";
+import { gitStashList } from "../api/git";
+import { useRepo, useRepoQuery } from "../state/repo";
 
 export function Stash() {
-  const { repoPath, refreshCount, changedFiles, stashSave, stashRestore, stashDrop, busy } =
-    useRepo();
-  const [stashes, setStashes] = useState<StashEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { changedFiles, stashSave, stashRestore, stashDrop, busy } = useRepo();
+  const { data, error } = useRepoQuery(gitStashList);
   const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    if (!repoPath) return;
-    gitStashList(repoPath)
-      .then((result) => setStashes(result.stashes))
-      .catch((err) => setError(isGitError(err) ? err.message : String(err)));
-  }, [repoPath, refreshCount]);
+  const stashes = data?.stashes ?? null;
 
   const hasChanges = changedFiles.length > 0;
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!hasChanges || busy) return;
-    stashSave(message);
-    setMessage("");
+    stashSave(message).then((ok) => ok && setMessage(""));
   }
 
   return (

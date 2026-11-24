@@ -4,11 +4,12 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import * as git from "../api/git";
-import type { BranchInfo, OpenRepoResult, RemoteInfo, StatusResult } from "../api/git";
+import type { BranchInfo, GitActionResult, RemoteInfo, StatusResult } from "../api/git";
 
 export interface SelectedFile {
   path: string;
@@ -47,18 +48,18 @@ interface RepoContextValue {
   refresh: () => Promise<void>;
   initRepo: () => Promise<void>;
   toggleChecked: (path: string) => void;
-  save: (message: string) => Promise<void>;
-  push: () => Promise<void>;
-  pull: () => Promise<void>;
-  checkoutBranch: (name: string) => Promise<void>;
-  createBranch: (name: string) => Promise<void>;
-  addRemoteAndPush: (url: string) => Promise<void>;
-  setUpstream: (remote: string) => Promise<void>;
-  stashSave: (message: string) => Promise<void>;
-  stashRestore: (index: number) => Promise<void>;
-  stashDrop: (index: number) => Promise<void>;
-  discardFile: (file: ChangedFile) => Promise<void>;
-  revertCommit: (hash: string) => Promise<void>;
+  save: (message: string) => Promise<boolean>;
+  push: () => Promise<boolean>;
+  pull: () => Promise<boolean>;
+  checkoutBranch: (name: string) => Promise<boolean>;
+  createBranch: (name: string) => Promise<boolean>;
+  addRemoteAndPush: (url: string) => Promise<boolean>;
+  setUpstream: (remote: string) => Promise<boolean>;
+  stashSave: (message: string) => Promise<boolean>;
+  stashRestore: (index: number) => Promise<boolean>;
+  stashDrop: (index: number) => Promise<boolean>;
+  discardFile: (file: ChangedFile) => Promise<boolean>;
+  revertCommit: (hash: string) => Promise<boolean>;
   selectFile: (path: string, staged: boolean) => void;
   dismissError: () => void;
   dismissNotARepo: () => void;
@@ -69,13 +70,7 @@ const RepoContext = createContext<RepoContextValue | null>(null);
 function combineChangedFiles(status: StatusResult | null): ChangedFile[] {
   if (!status) return [];
   const byPath = new Map<string, ChangedFile>();
-  for (const f of status.untracked) {
-    byPath.set(f.path, { path: f.path, status: f.status, orig_path: null });
-  }
-  for (const f of status.staged) {
-    byPath.set(f.path, { path: f.path, status: f.status, orig_path: f.orig_path });
-  }
-  for (const f of status.unstaged) {
+  for (const f of [...status.untracked, ...status.staged, ...status.unstaged]) {
     byPath.set(f.path, { path: f.path, status: f.status, orig_path: f.orig_path });
   }
   return Array.from(byPath.values()).sort((a, b) => a.path.localeCompare(b.path));
@@ -93,6 +88,7 @@ export function RepoProvider({ children }: { children: ReactNode }) {
   const [notARepoPath, setNotARepoPath] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [refreshCount, setRefreshCount] = useState(0);
+  const loadSeq = useRef(0);
 
   const changedFiles = useMemo(() => combineChangedFiles(status), [status]);
 
@@ -109,6 +105,11 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     setCommandLog((log) => [{ command, error }, ...log].slice(0, 200));
   }, []);
 
+  const record = useCallback(
+    (result: GitActionResult) => logCommand(result.command_run, result.stderr ?? undefined),
+    [logCommand],
+  );
+
   const handleError = useCallback(
     (err: unknown) => {
       if (git.isGitError(err)) {
@@ -121,85 +122,60 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     [logCommand],
   );
 
-  const loadBranches = useCallback(
-    async (path: string) => {
+  const load = useCallback(
+    async (path: string, silent: boolean) => {
+      const seq = ++loadSeq.current;
       try {
-        setBranches(await git.gitBranches(path));
+        const [statusResult, branchList, remoteList] = await Promise.all([
+          git.gitStatus(path),
+          git.gitBranches(path),
+          git.gitRemotes(path),
+        ]);
+        if (seq !== loadSeq.current) return;
+        const files = combineChangedFiles(statusResult.status);
+        setRepoPath(path);
+        setStatus(statusResult.status);
+        setBranches(branchList);
+        setRemotes(remoteList);
+        setSelectedFile((prev) => (prev && files.some((f) => f.path === prev.path) ? prev : null));
+        setRefreshCount((n) => n + 1);
+        if (!silent) logCommand(statusResult.command_run);
       } catch (err) {
-        handleError(err);
+        if (seq === loadSeq.current) handleError(err);
       }
     },
-    [handleError],
-  );
-
-  const loadRemotes = useCallback(
-    async (path: string) => {
-      try {
-        setRemotes(await git.gitRemotes(path));
-      } catch (err) {
-        handleError(err);
-      }
-    },
-    [handleError],
-  );
-
-  const refreshStatus = useCallback(async (silent = false) => {
-    if (!repoPath) return;
-    try {
-      const result = await git.gitStatus(repoPath);
-      setStatus(result.status);
-      if (!silent) {
-        logCommand(result.command_run);
-      }
-      setSelectedFile((prev) => {
-        if (!prev) return prev;
-        const stillChanged = combineChangedFiles(result.status).some((f) => f.path === prev.path);
-        return stillChanged ? prev : null;
-      });
-      await Promise.all([loadBranches(repoPath), loadRemotes(repoPath)]);
-      setRefreshCount((n) => n + 1);
-    } catch (err) {
-      handleError(err);
-    }
-  }, [repoPath, logCommand, handleError, loadBranches, loadRemotes]);
-
-  const applyOpenedRepo = useCallback(
-    async (result: OpenRepoResult) => {
-      setRepoPath(result.path);
-      setStatus(result.status);
-      setSelectedFile(null);
-      setNotARepoPath(null);
-      logCommand(result.command_run);
-      await Promise.all([loadBranches(result.path), loadRemotes(result.path)]);
-      setRefreshCount((n) => n + 1);
-    },
-    [logCommand, loadBranches, loadRemotes],
+    [logCommand, handleError],
   );
 
   useEffect(() => {
-    if (!repoPath) return;
-    function handleFocus() {
-      if (!busy) {
-        refreshStatus(true);
-      }
-    }
-    window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
-  }, [repoPath, busy, refreshStatus]);
+    if (!repoPath || busy) return;
+    const path = repoPath;
+    const onFocus = () => load(path, true);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [repoPath, busy, load]);
 
-  const refresh = useCallback(() => refreshStatus(), [refreshStatus]);
+  async function refresh() {
+    if (repoPath) await load(repoPath, false);
+  }
 
-  const pickAndOpenRepo = useCallback(async () => {
+  async function openPath(path: string) {
+    const root = await git.openRepo(path);
+    setNotARepoPath(null);
+    setSelectedFile(null);
+    setUncheckedPaths(new Set());
+    await load(root, false);
+  }
+
+  async function pickAndOpenRepo() {
     setBusy(true);
     let picked: string | null = null;
     try {
       picked = await git.pickRepoFolder();
-      if (!picked) return;
-      const result = await git.openRepo(picked);
-      await applyOpenedRepo(result);
+      if (picked) await openPath(picked);
     } catch (err) {
       if (picked && git.isNotARepoError(err)) {
-        if (git.isGitError(err)) logCommand(err.command_run, err.message);
+        logCommand(err.command_run, err.message);
         setNotARepoPath(picked);
       } else {
         handleError(err);
@@ -207,173 +183,92 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     } finally {
       setBusy(false);
     }
-  }, [applyOpenedRepo, logCommand, handleError]);
+  }
 
-  const initRepo = useCallback(async () => {
+  async function initRepo() {
     if (!notARepoPath) return;
-    const path = notARepoPath;
     setBusy(true);
     try {
-      const initResult = await git.gitInit(path);
-      logCommand(initResult.command_run, initResult.stderr ?? undefined);
-      const result = await git.openRepo(path);
-      await applyOpenedRepo(result);
+      record(await git.gitInit(notARepoPath));
+      await openPath(notARepoPath);
     } catch (err) {
       handleError(err);
     } finally {
       setBusy(false);
     }
-  }, [notARepoPath, applyOpenedRepo, logCommand, handleError]);
+  }
 
-  const toggleChecked = useCallback((path: string) => {
+  function toggleChecked(path: string) {
     setUncheckedPaths((prev) => {
       const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
+      if (!next.delete(path)) next.add(path);
       return next;
     });
-  }, []);
+  }
 
-  const runMutation = useCallback(
-    async (action: (path: string) => Promise<git.GitActionResult>) => {
-      if (!repoPath) return;
-      setBusy(true);
-      try {
-        const result = await action(repoPath);
-        logCommand(result.command_run, result.stderr ?? undefined);
-        await refreshStatus();
-      } catch (err) {
-        handleError(err);
-      } finally {
-        setBusy(false);
-      }
-    },
-    [repoPath, logCommand, handleError, refreshStatus],
-  );
+  async function mutate(action: (path: string) => Promise<void>): Promise<boolean> {
+    if (!repoPath) return false;
+    const path = repoPath;
+    setBusy(true);
+    try {
+      await action(path);
+      return true;
+    } catch (err) {
+      handleError(err);
+      return false;
+    } finally {
+      await load(path, false);
+      setBusy(false);
+    }
+  }
 
-  const push = useCallback(() => runMutation(git.gitPush), [runMutation]);
-  const pull = useCallback(() => runMutation(git.gitPull), [runMutation]);
+  function runOne(action: (path: string) => Promise<GitActionResult>) {
+    return mutate(async (path) => record(await action(path)));
+  }
 
-  const checkoutBranch = useCallback(
-    (name: string) => runMutation((path) => git.gitCheckoutBranch(path, name)),
-    [runMutation],
-  );
+  function save(message: string) {
+    if (!status) return Promise.resolve(false);
+    const included = (f: git.FileEntry) => !uncheckedPaths.has(f.path);
+    if (!changedFiles.some(included)) return Promise.resolve(false);
+    const toUnstage = status.staged
+      .filter((f) => !included(f))
+      .flatMap((f) => (f.orig_path ? [f.path, f.orig_path] : [f.path]));
+    const toStage = [
+      ...status.unstaged,
+      ...status.untracked,
+      ...status.staged.filter((f) => f.status === "unmerged"),
+    ]
+      .filter(included)
+      .map((f) => f.path);
 
-  const createBranch = useCallback(
-    (name: string) => runMutation((path) => git.gitCreateBranch(path, name)),
-    [runMutation],
-  );
+    return mutate(async (path) => {
+      if (toUnstage.length > 0) record(await git.gitUnstage(path, toUnstage));
+      if (toStage.length > 0) record(await git.gitStage(path, toStage));
+      record(await git.gitCommit(path, message));
+    });
+  }
 
-  const addRemoteAndPush = useCallback(
-    async (url: string) => {
-      if (!repoPath || !status?.branch) return;
-      const branch = status.branch;
-      setBusy(true);
-      try {
-        const addResult = await git.gitAddRemote(repoPath, "origin", url);
-        logCommand(addResult.command_run, addResult.stderr ?? undefined);
-        const pushResult = await git.gitPushUpstream(repoPath, "origin", branch);
-        logCommand(pushResult.command_run, pushResult.stderr ?? undefined);
-        await refreshStatus();
-      } catch (err) {
-        handleError(err);
-      } finally {
-        setBusy(false);
-      }
-    },
-    [repoPath, status, logCommand, handleError, refreshStatus],
-  );
+  function discardFile(file: ChangedFile) {
+    return mutate(async (path) => {
+      if (file.orig_path) record(await git.gitDiscard(path, file.orig_path));
+      record(await git.gitDiscard(path, file.path));
+    });
+  }
 
-  const setUpstream = useCallback(
-    (remote: string) => {
-      const branch = status?.branch ?? "";
-      return runMutation((path) => git.gitPushUpstream(path, remote, branch));
-    },
-    [status, runMutation],
-  );
+  function addRemoteAndPush(url: string) {
+    const branch = status?.branch;
+    if (!branch) return Promise.resolve(false);
+    return mutate(async (path) => {
+      record(await git.gitAddRemote(path, "origin", url));
+      record(await git.gitPushUpstream(path, "origin", branch));
+    });
+  }
 
-  const stashSave = useCallback(
-    (message: string) => runMutation((path) => git.gitStashSave(path, message)),
-    [runMutation],
-  );
-
-  const stashRestore = useCallback(
-    (index: number) => runMutation((path) => git.gitStashRestore(path, index)),
-    [runMutation],
-  );
-
-  const stashDrop = useCallback(
-    (index: number) => runMutation((path) => git.gitStashDrop(path, index)),
-    [runMutation],
-  );
-
-  const revertCommit = useCallback(
-    (hash: string) => runMutation((path) => git.gitRevert(path, hash)),
-    [runMutation],
-  );
-
-  const save = useCallback(
-    async (message: string) => {
-      if (!repoPath || !status) return;
-      const toStage = changedFiles
-        .filter((f) => !uncheckedPaths.has(f.path))
-        .map((f) => f.path);
-      const toUnstage = status.staged
-        .filter((f) => uncheckedPaths.has(f.path))
-        .map((f) => f.path);
-
-      if (toStage.length === 0) return;
-
-      setBusy(true);
-      try {
-        if (toUnstage.length > 0) {
-          const result = await git.gitUnstage(repoPath, toUnstage);
-          logCommand(result.command_run, result.stderr ?? undefined);
-        }
-        const stageResult = await git.gitStage(repoPath, toStage);
-        logCommand(stageResult.command_run, stageResult.stderr ?? undefined);
-        const commitResult = await git.gitCommit(repoPath, message);
-        logCommand(commitResult.command_run, commitResult.stderr ?? undefined);
-        await refreshStatus();
-      } catch (err) {
-        handleError(err);
-      } finally {
-        setBusy(false);
-      }
-    },
-    [repoPath, status, changedFiles, uncheckedPaths, logCommand, handleError, refreshStatus],
-  );
-
-  const discardFile = useCallback(
-    async (file: ChangedFile) => {
-      if (!repoPath) return;
-      setBusy(true);
-      try {
-        if (file.orig_path) {
-          const origResult = await git.gitDiscard(repoPath, file.orig_path);
-          logCommand(origResult.command_run, origResult.stderr ?? undefined);
-        }
-        const result = await git.gitDiscard(repoPath, file.path);
-        logCommand(result.command_run, result.stderr ?? undefined);
-        await refreshStatus();
-      } catch (err) {
-        handleError(err);
-      } finally {
-        setBusy(false);
-      }
-    },
-    [repoPath, logCommand, handleError, refreshStatus],
-  );
-
-  const selectFile = useCallback((path: string, staged: boolean) => {
-    setSelectedFile({ path, staged });
-  }, []);
-
-  const dismissError = useCallback(() => setErrorMessage(null), []);
-  const dismissNotARepo = useCallback(() => setNotARepoPath(null), []);
+  function setUpstream(remote: string) {
+    const branch = status?.branch;
+    if (!branch) return Promise.resolve(false);
+    return runOne((path) => git.gitPushUpstream(path, remote, branch));
+  }
 
   const value: RepoContextValue = {
     repoPath,
@@ -393,20 +288,20 @@ export function RepoProvider({ children }: { children: ReactNode }) {
     initRepo,
     toggleChecked,
     save,
-    push,
-    pull,
-    checkoutBranch,
-    createBranch,
+    push: () => runOne(git.gitPush),
+    pull: () => runOne(git.gitPull),
+    checkoutBranch: (name) => runOne((path) => git.gitCheckoutBranch(path, name)),
+    createBranch: (name) => runOne((path) => git.gitCreateBranch(path, name)),
     addRemoteAndPush,
     setUpstream,
-    stashSave,
-    stashRestore,
-    stashDrop,
+    stashSave: (message) => runOne((path) => git.gitStashSave(path, message)),
+    stashRestore: (index) => runOne((path) => git.gitStashRestore(path, index)),
+    stashDrop: (index) => runOne((path) => git.gitStashDrop(path, index)),
     discardFile,
-    revertCommit,
-    selectFile,
-    dismissError,
-    dismissNotARepo,
+    revertCommit: (hash) => runOne((path) => git.gitRevert(path, hash)),
+    selectFile: (path, staged) => setSelectedFile({ path, staged }),
+    dismissError: () => setErrorMessage(null),
+    dismissNotARepo: () => setNotARepoPath(null),
   };
 
   return <RepoContext.Provider value={value}>{children}</RepoContext.Provider>;
@@ -418,4 +313,40 @@ export function useRepo(): RepoContextValue {
     throw new Error("useRepo must be used within a RepoProvider");
   }
   return ctx;
+}
+
+export function useRepoQuery<T>(
+  query: ((repo: string) => Promise<T>) | null,
+  key = "",
+): { data: T | null; error: string | null } {
+  const { repoPath, refreshCount } = useRepo();
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const active = query !== null;
+
+  useEffect(() => {
+    if (!repoPath || !query) {
+      setData(null);
+      setError(null);
+      return;
+    }
+    let cancelled = false;
+    query(repoPath).then(
+      (result) => {
+        if (cancelled) return;
+        setData(result);
+        setError(null);
+      },
+      (err) => {
+        if (cancelled) return;
+        setData(null);
+        setError(git.isGitError(err) ? err.message : String(err));
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [repoPath, refreshCount, active, key]);
+
+  return { data, error };
 }

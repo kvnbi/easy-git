@@ -16,7 +16,7 @@ pub struct StashListResult {
     pub command_run: String,
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_stash_save(repo: String, message: String) -> Result<GitActionResult, GitError> {
     let mut args = vec!["stash", "push", "-u"];
     if !message.trim().is_empty() {
@@ -27,7 +27,7 @@ pub fn git_stash_save(repo: String, message: String) -> Result<GitActionResult, 
     Ok(ok_result(output))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_stash_list(repo: String) -> Result<StashListResult, GitError> {
     let format_arg = format!("--pretty=format:%gd{FIELD_SEP}%s");
     let output = run_git(&repo, &["stash", "list", &format_arg])?;
@@ -51,14 +51,14 @@ pub fn git_stash_list(repo: String) -> Result<StashListResult, GitError> {
     })
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_stash_restore(repo: String, index: i32) -> Result<GitActionResult, GitError> {
     let reference = format!("stash@{{{index}}}");
     let output = run_git(&repo, &["stash", "pop", &reference])?;
     Ok(ok_result(output))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_stash_drop(repo: String, index: i32) -> Result<GitActionResult, GitError> {
     let reference = format!("stash@{{{index}}}");
     let output = run_git(&repo, &["stash", "drop", &reference])?;

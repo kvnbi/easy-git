@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 #[derive(Serialize, Debug)]
 pub struct GitError {
@@ -30,16 +30,16 @@ pub fn ok_result(output: GitOutput) -> GitActionResult {
     }
 }
 
-fn command_string(args: &[&str]) -> String {
-    format!("git {}", args.join(" "))
-}
-
 pub fn run_git(repo: &str, args: &[&str]) -> Result<GitOutput, GitError> {
-    let command_run = command_string(args);
+    let command_run = format!("git {}", args.join(" "));
 
     let output = Command::new("git")
         .current_dir(repo)
         .args(args)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_OPTIONAL_LOCKS", "0")
+        .env("LC_ALL", "C")
+        .stdin(Stdio::null())
         .output()
         .map_err(|e| GitError {
             command_run: command_run.clone(),
@@ -50,11 +50,7 @@ pub fn run_git(repo: &str, args: &[&str]) -> Result<GitOutput, GitError> {
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
 
     if !output.status.success() {
-        let message = if stderr.trim().is_empty() {
-            stdout.clone()
-        } else {
-            stderr.clone()
-        };
+        let message = if stderr.trim().is_empty() { stdout } else { stderr };
         return Err(GitError { command_run, message });
     }
 

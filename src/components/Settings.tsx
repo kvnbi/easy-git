@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { gitConfigInfo } from "../api/git";
-import type { GitConfigInfo } from "../api/git";
-import { useRepo } from "../state/repo";
+import { useRepo, useRepoQuery } from "../state/repo";
 import { useTheme } from "../state/theme";
 import type { Theme } from "../state/theme";
 
@@ -19,15 +18,7 @@ const themeOptions: { value: Theme; label: string }[] = [
 export function Settings({ open, onClose }: SettingsProps) {
   const { repoPath } = useRepo();
   const { theme, setTheme } = useTheme();
-  const [config, setConfig] = useState<GitConfigInfo | null>(null);
-
-  useEffect(() => {
-    if (!open || !repoPath) {
-      setConfig(null);
-      return;
-    }
-    gitConfigInfo(repoPath).then(setConfig);
-  }, [open, repoPath]);
+  const { data: config } = useRepoQuery(open ? gitConfigInfo : null);
 
   useEffect(() => {
     if (!open) return;

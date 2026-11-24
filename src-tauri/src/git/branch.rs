@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use serde::Serialize;
 
 use crate::exec::{ok_result, run_git, GitActionResult, GitError};
@@ -8,61 +10,51 @@ pub struct BranchInfo {
     pub is_current: bool,
 }
 
-fn parse_branches(local: &str, remote: &str) -> Vec<BranchInfo> {
-    let mut branches: Vec<BranchInfo> = local
-        .lines()
-        .filter_map(|line| {
-            let line = line.trim_end();
-            if line.is_empty() {
-                return None;
-            }
-            let is_current = line.starts_with('*');
-            let name = line.trim_start_matches('*').trim().to_string();
-            if name.is_empty() {
-                return None;
-            }
-            if name.contains("HEAD detached") || name == "(no branch)" {
-                return None;
-            }
-            Some(BranchInfo { name, is_current })
-        })
-        .collect();
+fn parse_branches(raw: &str) -> Vec<BranchInfo> {
+    let mut seen = HashSet::new();
+    let mut branches = Vec::new();
 
-    for line in remote.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.contains("->") {
+    for line in raw.lines() {
+        let Some(refname) = line.get(1..) else {
             continue;
-        }
-        let name = match line.split_once('/') {
-            Some((_, rest)) => rest,
-            None => continue,
         };
-        if name.is_empty() || branches.iter().any(|b| b.name == name) {
+        let name = if let Some(name) = refname.strip_prefix("refs/heads/") {
+            name
+        } else if let Some(rest) = refname.strip_prefix("refs/remotes/") {
+            match rest.split_once('/') {
+                Some((_, name)) if name != "HEAD" => name,
+                _ => continue,
+            }
+        } else {
             continue;
+        };
+        if seen.insert(name.to_string()) {
+            branches.push(BranchInfo {
+                name: name.to_string(),
+                is_current: line.starts_with('*'),
+            });
         }
-        branches.push(BranchInfo {
-            name: name.to_string(),
-            is_current: false,
-        });
     }
 
     branches
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_branches(repo: String) -> Result<Vec<BranchInfo>, GitError> {
-    let local = run_git(&repo, &["branch", "--list"])?;
-    let remote = run_git(&repo, &["branch", "--remotes"])?;
-    Ok(parse_branches(&local.stdout, &remote.stdout))
+    let output = run_git(
+        &repo,
+        &["for-each-ref", "--format=%(HEAD)%(refname)", "refs/heads", "refs/remotes"],
+    )?;
+    Ok(parse_branches(&output.stdout))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_checkout_branch(repo: String, name: String) -> Result<GitActionResult, GitError> {
     let output = run_git(&repo, &["checkout", &name])?;
     Ok(ok_result(output))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn git_create_branch(repo: String, name: String) -> Result<GitActionResult, GitError> {
     let output = run_git(&repo, &["checkout", "-b", &name])?;
     Ok(ok_result(output))
@@ -89,7 +81,7 @@ mod tests {
 
         assert!(names.contains(&"feature-login".to_string()));
         assert!(names.contains(&"feature-signup".to_string()));
-        assert!(!names.iter().any(|n| n.starts_with("origin/")));
+        assert!(!names.iter().any(|n| n.starts_with("origin/") || n == "HEAD"));
 
         git_checkout_branch(clone.dir(), "feature-login".to_string()).unwrap();
         let current = git_branches(clone.dir())
@@ -107,8 +99,19 @@ mod tests {
     }
 
     #[test]
+    fn detached_head_marks_no_branch_current() {
+        let repo = TempRepo::new("branch-detached");
+        let first = repo.commit("a.txt", "one\n", "first");
+        repo.commit("a.txt", "two\n", "second");
+        repo.git(&["checkout", &first]);
+
+        let branches = git_branches(repo.dir()).unwrap();
+        assert_eq!(branches, vec![BranchInfo { name: "main".to_string(), is_current: false }]);
+    }
+
+    #[test]
     fn parses_normal_branches() {
-        let branches = parse_branches("* main\n  feature-x\n", "");
+        let branches = parse_branches("*refs/heads/main\n refs/heads/feature-x\n");
         assert_eq!(
             branches,
             vec![
@@ -119,29 +122,10 @@ mod tests {
     }
 
     #[test]
-    fn skips_detached_head_pseudo_branch() {
-        let branches = parse_branches("* (HEAD detached at abc1234)\n  main\n", "");
-        assert_eq!(
-            branches,
-            vec![BranchInfo { name: "main".to_string(), is_current: false }]
-        );
-    }
-
-    #[test]
-    fn skips_no_branch_pseudo_entry() {
-        let branches = parse_branches("* (no branch)\n  main\n", "");
-        assert_eq!(
-            branches,
-            vec![BranchInfo { name: "main".to_string(), is_current: false }]
-        );
-    }
-
-    #[test]
     fn includes_remote_only_branches_by_short_name() {
-        let remote = "  origin/HEAD -> origin/main\n  origin/feature-login\n  origin/main\n";
-        let branches = parse_branches("* main\n", remote);
+        let raw = "*refs/heads/main\n refs/remotes/origin/HEAD\n refs/remotes/origin/feature-login\n refs/remotes/origin/main\n";
         assert_eq!(
-            branches,
+            parse_branches(raw),
             vec![
                 BranchInfo { name: "main".to_string(), is_current: true },
                 BranchInfo { name: "feature-login".to_string(), is_current: false },
@@ -151,18 +135,9 @@ mod tests {
 
     #[test]
     fn keeps_slashes_inside_remote_branch_names() {
-        let branches = parse_branches("", "  origin/feature/login\n");
         assert_eq!(
-            branches,
+            parse_branches(" refs/remotes/origin/feature/login\n"),
             vec![BranchInfo { name: "feature/login".to_string(), is_current: false }]
         );
-    }
-
-    #[test]
-    fn lists_remote_branches_when_nothing_is_checked_out() {
-        let remote = "  origin/feature-login\n  origin/feature-signup\n";
-        let branches = parse_branches("", remote);
-        assert_eq!(branches.len(), 2);
-        assert!(branches.iter().all(|b| !b.is_current));
     }
 }

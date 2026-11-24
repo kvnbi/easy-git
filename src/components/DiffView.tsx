@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
-import { gitDiff, isGitError } from "../api/git";
-import { displayStatus, useRepo } from "../state/repo";
+import { memo } from "react";
+import { gitDiff } from "../api/git";
+import { displayStatus, useRepo, useRepoQuery } from "../state/repo";
+
+const MAX_LINES = 5000;
 
 function diffLineClass(line: string): string {
   if (line.startsWith("+") && !line.startsWith("+++")) return "diff-add";
@@ -9,61 +11,41 @@ function diffLineClass(line: string): string {
   return "diff-context";
 }
 
-function DiffBody() {
-  const { repoPath, selectedFile } = useRepo();
-  const [diff, setDiff] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!repoPath || !selectedFile) {
-      setDiff(null);
-      setError(null);
-      return;
-    }
-    let cancelled = false;
-    gitDiff(repoPath, selectedFile.path, selectedFile.staged)
-      .then((result) => {
-        if (!cancelled) {
-          setDiff(result.diff);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setDiff(null);
-          setError(isGitError(err) ? err.message : String(err));
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [repoPath, selectedFile]);
-
-  if (error) {
-    return <div className="diff-body diff-error">{error}</div>;
-  }
-
-  if (diff === null) {
-    return <div className="diff-body empty-state">Loading changes...</div>;
-  }
-
-  if (diff.trim() === "") {
-    return (
-      <div className="diff-body empty-state">
-        No changes to show{selectedFile?.staged ? "" : " yet for this new file"}.
-      </div>
-    );
-  }
-
+export const DiffLines = memo(function DiffLines({ diff }: { diff: string }) {
+  const lines = diff.split("\n");
+  const hidden = lines.length - MAX_LINES;
   return (
     <pre className="diff-body">
-      {diff.split("\n").map((line, i) => (
+      {lines.slice(0, MAX_LINES).map((line, i) => (
         <div key={i} className={diffLineClass(line)}>
           {line || " "}
         </div>
       ))}
+      {hidden > 0 && <div className="diff-hunk">{hidden} more lines not shown</div>}
     </pre>
   );
+});
+
+function DiffBody({ path, staged }: { path: string; staged: boolean }) {
+  const { data, error } = useRepoQuery(
+    (repo) => gitDiff(repo, path, staged),
+    `${staged}:${path}`,
+  );
+
+  if (error) {
+    return <div className="diff-body diff-error">{error}</div>;
+  }
+  if (data === null) {
+    return <div className="diff-body empty-state">Loading changes...</div>;
+  }
+  if (data.diff.trim() === "") {
+    return (
+      <div className="diff-body empty-state">
+        No changes to show{staged ? "" : " yet for this new file"}.
+      </div>
+    );
+  }
+  return <DiffLines diff={data.diff} />;
 }
 
 export function DiffView() {
@@ -90,7 +72,7 @@ export function DiffView() {
         </span>
         {fileStatus && <span className="diff-panel-badge">{displayStatus(fileStatus)}</span>}
       </div>
-      <DiffBody />
+      <DiffBody path={selectedFile.path} staged={selectedFile.staged} />
     </div>
   );
 }

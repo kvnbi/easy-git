@@ -17,12 +17,6 @@ export interface StatusResult {
   has_conflicts: boolean;
 }
 
-export interface OpenRepoResult {
-  path: string;
-  status: StatusResult;
-  command_run: string;
-}
-
 export interface StatusCommandResult {
   status: StatusResult;
   command_run: string;
@@ -91,7 +85,7 @@ export function isGitError(err: unknown): err is GitError {
   );
 }
 
-export function isNotARepoError(err: unknown): boolean {
+export function isNotARepoError(err: unknown): err is GitError {
   return isGitError(err) && err.message.includes("doesn't look like a git repository");
 }
 
@@ -123,7 +117,7 @@ export function pickRepoFolder(): Promise<string | null> {
   return invoke("pick_repo_folder");
 }
 
-export function openRepo(path: string): Promise<OpenRepoResult> {
+export function openRepo(path: string): Promise<string> {
   return invoke("open_repo", { path });
 }
 

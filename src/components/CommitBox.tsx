@@ -11,8 +11,7 @@ export function CommitBox() {
 
   async function handleSave() {
     if (!canSave) return;
-    await save(message.trim());
-    setMessage("");
+    if (await save(message.trim())) setMessage("");
   }
 
   return (
